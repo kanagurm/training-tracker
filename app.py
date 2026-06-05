@@ -77,7 +77,11 @@ section[data-testid="stSidebar"] {
     background: linear-gradient(160deg, #0d0221 0%, #1a0533 30%, #0d1b4b 70%, #001233 100%) !important;
     border-right: 1px solid rgba(139,92,246,0.2) !important;
 }
-section[data-testid="stSidebar"] * { color: #c4b5fd !important; }
+/* Scope text colour to text nodes only — do NOT use * wildcard (hides SVG icons) */
+section[data-testid="stSidebar"] p,
+section[data-testid="stSidebar"] span:not([data-testid]),
+section[data-testid="stSidebar"] div.stMarkdown,
+section[data-testid="stSidebar"] label { color: #c4b5fd !important; }
 section[data-testid="stSidebar"] h1,
 section[data-testid="stSidebar"] h2,
 section[data-testid="stSidebar"] h3 { color: #ffffff !important; font-weight: 800 !important; }
@@ -285,12 +289,14 @@ hr {
 ::-webkit-scrollbar-thumb { background: linear-gradient(#6366f1,#8b5cf6); border-radius: 10px; }
 
 /* ── Hide only toolbar action icons, keep sidebar toggle intact ── */
-[data-testid="stToolbar"] { visibility: hidden !important; height: 0 !important; }
 [data-testid="stDecoration"] { display: none !important; }
 [data-testid="stToolbarActions"] { display: none !important; }
 [data-testid="stStatusWidget"] { display: none !important; }
 #MainMenu { display: none !important; }
 footer { display: none !important; }
+/* Keep collapse arrow always visible */
+[data-testid="collapsedControl"] { display: flex !important; visibility: visible !important; opacity: 1 !important; }
+[data-testid="collapsedControl"] svg { fill: #6366f1 !important; }
 
 /* ── Sidebar nav: hide radio dot and tighten spacing ── */
 section[data-testid="stSidebar"] .stRadio > div {
