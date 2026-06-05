@@ -796,19 +796,19 @@ def to_excel_bytes(emp, crs, rec):
 
 # ── UI Helpers ───────────────────────────────────────────────
 
-def gradient_header(title, subtitle=""):
+def gradient_header(title, subtitle="", color_start="#6366f1", color_end="#8b5cf6"):
     sub_html = ""
     if subtitle:
-        sub_html = f'<p style="color:rgba(255,255,255,0.85);margin:0.5rem 0 0;font-size:1.05rem;font-weight:400;">{subtitle}</p>'
+        sub_html = f'<p style="color:rgba(255,255,255,0.88);margin:0.4rem 0 0;font-size:1rem;font-weight:500;">{subtitle}</p>'
     st.markdown(f"""
     <div style="
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        padding: 2rem 2.5rem;
-        border-radius: 1.25rem;
-        margin-bottom: 1.5rem;
-        box-shadow: 0 10px 40px rgba(102,126,234,0.25);
+        background: linear-gradient(135deg, {color_start} 0%, {color_end} 100%);
+        padding: 1.6rem 2rem;
+        border-radius: 1.2rem;
+        margin-bottom: 1.4rem;
+        box-shadow: 0 8px 28px rgba(99,102,241,0.20);
     ">
-        <h1 style="color:white;margin:0;font-size:1.9rem;font-weight:800;letter-spacing:-0.5px;">{title}</h1>
+        <h1 style="color:white;margin:0;font-size:1.7rem;font-weight:800;letter-spacing:-0.3px;font-family:'Plus Jakarta Sans',sans-serif;">{title}</h1>
         {sub_html}
     </div>
     """, unsafe_allow_html=True)
@@ -818,25 +818,25 @@ def status_badge(status):
     c = colors.get(status, "#78909c")
     return f'<span style="background:{c};color:white;padding:0.25rem 0.75rem;border-radius:1rem;font-size:0.8rem;font-weight:600;">{status}</span>'
 
-def stat_card(label, value, color="#667eea"):
+def stat_card(label, value, color="#6366f1"):
     st.markdown(f"""
-    <div style="background:white;border-radius:1rem;padding:1.5rem;text-align:center;
-                box-shadow:0 2px 12px rgba(0,0,0,0.06);border-top:4px solid {color};
+    <div style="background:white;border-radius:1.1rem;padding:1.4rem 1.2rem;text-align:center;
+                box-shadow:0 4px 18px rgba(99,102,241,0.10);border-top:4px solid {color};
                 transition:transform 0.2s ease;">
-        <p style="color:#6b7280;font-size:0.8rem;font-weight:600;text-transform:uppercase;
-                  letter-spacing:0.5px;margin:0 0 0.5rem;">{label}</p>
-        <p style="color:#1a1a2e;font-size:2.2rem;font-weight:800;margin:0;line-height:1;">{value}</p>
+        <p style="color:#7c7c9c;font-size:0.72rem;font-weight:700;text-transform:uppercase;
+                  letter-spacing:1px;margin:0 0 0.4rem;">{label}</p>
+        <p style="color:#1e1b4b;font-size:2.1rem;font-weight:800;margin:0;line-height:1;">{value}</p>
     </div>
     """, unsafe_allow_html=True)
 
-def pct_card(label, value, pct, color="#667eea"):
+def pct_card(label, value, pct, color="#6366f1"):
     st.markdown(f"""
-    <div style="background:white;border-radius:1rem;padding:1.5rem;text-align:center;
-                box-shadow:0 2px 12px rgba(0,0,0,0.06);border-top:4px solid {color};
+    <div style="background:white;border-radius:1.1rem;padding:1.4rem 1.2rem;text-align:center;
+                box-shadow:0 4px 18px rgba(99,102,241,0.10);border-top:4px solid {color};
                 transition:transform 0.2s ease;">
-        <p style="color:#6b7280;font-size:0.8rem;font-weight:600;text-transform:uppercase;
-                  letter-spacing:0.5px;margin:0 0 0.5rem;">{label}</p>
-        <p style="color:#1a1a2e;font-size:2.2rem;font-weight:800;margin:0;line-height:1;">{value}</p>
+        <p style="color:#7c7c9c;font-size:0.72rem;font-weight:700;text-transform:uppercase;
+                  letter-spacing:1px;margin:0 0 0.4rem;">{label}</p>
+        <p style="color:#1e1b4b;font-size:2.1rem;font-weight:800;margin:0;line-height:1;">{value}</p>
         <p style="color:{color};font-size:0.95rem;font-weight:700;margin:0.4rem 0 0;">{pct}</p>
     </div>
     """, unsafe_allow_html=True)
@@ -888,7 +888,7 @@ st.sidebar.caption(
 # DASHBOARD
 # ═══════════════════════════════════════════════════════════════
 if page == "Dashboard":
-    gradient_header("Training Dashboard", "Real-time overview across all departments and employees")
+    gradient_header("Training Dashboard", "Real-time overview across all departments and employees", "#4f46e5", "#7c3aed")
 
     total = len(records)
     completed = int((records["Status"]=="Completed").sum())
@@ -898,11 +898,11 @@ if page == "Dashboard":
     comp_rate = round(completed/total*100,1) if total else 0
 
     c1,c2,c3,c4,c5 = st.columns(5)
-    with c1: stat_card("Total Records", total, "#667eea")
-    with c2: pct_card("Completed", completed, f"{comp_rate}%", "#00c853")
-    with c3: stat_card("In Progress", in_prog, "#ff9100")
-    with c4: stat_card("Overdue", overdue, "#ff1744")
-    with c5: stat_card("Not Started", not_started, "#78909c")
+    with c1: stat_card("Total Records", total, "#6366f1")
+    with c2: pct_card("Completed", completed, f"{comp_rate}%", "#059669")
+    with c3: stat_card("In Progress", in_prog, "#f59e0b")
+    with c4: stat_card("Overdue", overdue, "#f43f5e")
+    with c5: stat_card("Not Started", not_started, "#94a3b8")
 
     st.markdown("<br>", unsafe_allow_html=True)
 
@@ -994,7 +994,7 @@ if page == "Dashboard":
 # ADD TRAINING RECORD
 # ═══════════════════════════════════════════════════════════════
 elif page == "Add Training Record":
-    gradient_header("Add Training Record", "Assign a course to an employee and track completion")
+    gradient_header("Add Training Record", "Assign a course to an employee and track completion", "#0891b2", "#0e7490")
 
     if employees.empty:
         st.warning("No employees found. Please add employees first via **Manage Employees**.")
@@ -1026,7 +1026,7 @@ elif page == "Add Training Record":
 # MANAGE EMPLOYEES
 # ═══════════════════════════════════════════════════════════════
 elif page == "Manage Employees":
-    gradient_header("Manage Employees", "Add new team members or update existing records")
+    gradient_header("Manage Employees", "Add new team members or update existing records", "#059669", "#0d9488")
 
     tab_add, tab_view = st.tabs(["Add New Employee", "Current Employees"])
 
@@ -1050,14 +1050,18 @@ elif page == "Manage Employees":
                     add_employee(emp_name, department, hire_date.strftime("%Y-%m-%d"))
                     st.success(f"**Added:** {emp_name.strip()} ({department})")
                     st.balloons()
+                    st.rerun()
                 except Exception as e:
                     st.error(f"Error: {e}")
 
     with tab_view:
         search = st.text_input("Search employees", key="emp_search", placeholder="Type a name or department...")
-        display = employees.copy()
+        # Use fresh DB fetch so newly added employees always appear immediately
+        fresh_employees = get_employees()
+        display = fresh_employees.copy()
         if search:
-            display = display[display.apply(lambda r: r.astype(str).str.contains(search, case=False).any(), axis=1)]
+            mask = display.apply(lambda r: r.astype(str).str.contains(search.strip(), case=False, regex=False).any(), axis=1)
+            display = display[mask]
 
         st.markdown(f"**Showing {len(display)} of {len(employees)} employees**")
         st.dataframe(display, use_container_width=True, hide_index=True)
@@ -1080,7 +1084,7 @@ elif page == "Manage Employees":
 # MANAGE COURSES
 # ═══════════════════════════════════════════════════════════════
 elif page == "Manage Courses":
-    gradient_header("Manage Courses", "Add new training courses or remove existing ones")
+    gradient_header("Manage Courses", "Add new training courses or remove existing ones", "#d97706", "#b45309")
 
     tab_add, tab_view = st.tabs(["Add New Course", "Current Courses"])
 
@@ -1135,7 +1139,7 @@ elif page == "Manage Courses":
 # BROWSE DATA
 # ═══════════════════════════════════════════════════════════════
 elif page == "Browse Data":
-    gradient_header("Browse Database", "Filter, search and explore all training data")
+    gradient_header("Browse Database", "Filter, search and explore all training data", "#7c3aed", "#6d28d9")
 
     t1, t2, t3 = st.tabs(["Training Records", "Employees", "Courses"])
 
@@ -1165,7 +1169,7 @@ elif page == "Browse Data":
 # EXPORT
 # ═══════════════════════════════════════════════════════════════
 elif page == "Export":
-    gradient_header("Export Data", "Download your training data as CSV or Excel")
+    gradient_header("Export Data", "Download your training data as CSV or Excel", "#0f766e", "#0891b2")
 
     st.markdown("#### CSV Downloads")
     c1,c2,c3 = st.columns(3)
@@ -1194,7 +1198,7 @@ elif page == "Export":
 # AUDIT LOG
 # ═══════════════════════════════════════════════════════════════
 elif page == "Audit Log":
-    gradient_header("Audit Log", "Full history of every add, delete, and login action")
+    gradient_header("Audit Log", "Full history of every add, delete, and login action", "#1d4ed8", "#4338ca")
 
     audit_df = get_audit_log(500)
 
@@ -1253,7 +1257,7 @@ elif page == "Audit Log":
 # EMAIL REMINDERS
 # ═══════════════════════════════════════════════════════════════
 elif page == "Email Reminders":
-    gradient_header("Email Reminders", "Send overdue and upcoming training reminders to employees")
+    gradient_header("Email Reminders", "Send overdue and upcoming training reminders to employees", "#be185d", "#9d174d")
 
     smtp_ready = bool(SMTP_USER and SMTP_PASS)
     if not smtp_ready:
