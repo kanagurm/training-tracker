@@ -796,19 +796,20 @@ def to_excel_bytes(emp, crs, rec):
 
 # ── UI Helpers ───────────────────────────────────────────────
 
-def gradient_header(title, subtitle="", color_start="#6366f1", color_end="#8b5cf6"):
+def gradient_header(title, subtitle="", color_start="#1e3a5f", color_end="#2563eb"):
     sub_html = ""
     if subtitle:
-        sub_html = f'<p style="color:rgba(255,255,255,0.88);margin:0.4rem 0 0;font-size:1rem;font-weight:500;">{subtitle}</p>'
+        sub_html = f'<p style="color:rgba(255,255,255,0.82);margin:0.35rem 0 0;font-size:0.97rem;font-weight:500;">{subtitle}</p>'
     st.markdown(f"""
     <div style="
-        background: linear-gradient(135deg, {color_start} 0%, {color_end} 100%);
-        padding: 1.6rem 2rem;
-        border-radius: 1.2rem;
-        margin-bottom: 1.4rem;
-        box-shadow: 0 8px 28px rgba(99,102,241,0.20);
+        background: linear-gradient(135deg, #1e3a5f 0%, #2563eb 100%);
+        padding: 1.4rem 2rem;
+        border-radius: 1.1rem;
+        margin-bottom: 1.3rem;
+        box-shadow: 0 6px 24px rgba(37,99,235,0.18);
+        border-left: 5px solid #60a5fa;
     ">
-        <h1 style="color:white;margin:0;font-size:1.7rem;font-weight:800;letter-spacing:-0.3px;font-family:'Plus Jakarta Sans',sans-serif;">{title}</h1>
+        <h1 style="color:white;margin:0;font-size:1.6rem;font-weight:800;letter-spacing:-0.2px;font-family:'Plus Jakarta Sans',sans-serif;">{title}</h1>
         {sub_html}
     </div>
     """, unsafe_allow_html=True)
@@ -846,8 +847,37 @@ def pct_card(label, value, pct, color="#6366f1"):
 # APP START
 # ═══════════════════════════════════════════════════════════════
 
-st.set_page_config(page_title="Training Tracker", page_icon=":mortar_board:", layout="wide")
+st.set_page_config(page_title="Employee Training Tracker | Gainwell Technologies", page_icon="\U0001f4d8", layout="wide")
 st.markdown(THEME_CSS, unsafe_allow_html=True)
+
+# ── Top Branding Bar ──────────────────────────────────────────
+st.markdown("""
+<div style="
+    background: linear-gradient(90deg, #0a1628 0%, #1e3a5f 60%, #1e40af 100%);
+    padding: 0.7rem 2rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-radius: 0 0 1rem 1rem;
+    margin-bottom: 1rem;
+    box-shadow: 0 4px 16px rgba(10,22,40,0.22);
+">
+    <div style="display:flex;align-items:center;gap:1rem;">
+        <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/9/9b/Seal_of_Tennessee.svg/120px-Seal_of_Tennessee.svg.png"
+             style="height:44px;border-radius:50%;background:white;padding:3px;" alt="Tennessee"/>
+        <div>
+            <div style="color:#93c5fd;font-size:0.72rem;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;">Tennessee State &nbsp;|&nbsp; Gainwell Technologies</div>
+            <div style="color:white;font-size:1.25rem;font-weight:800;letter-spacing:-0.2px;font-family:'Plus Jakarta Sans',sans-serif;">&#128218; Employee Training Tracker</div>
+        </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:0.75rem;">
+        <img src="https://www.gainwelltechnologies.com/wp-content/uploads/2021/03/gainwell-logo-white.svg"
+             onerror="this.style.display='none'"
+             style="height:32px;filter:brightness(0) invert(1);opacity:0.92;" alt="Gainwell Technologies"/>
+        <div style="color:#bfdbfe;font-size:0.75rem;text-align:right;line-height:1.4;">Multi-User Platform<br><span style='color:#60a5fa;font-weight:700;'>Live &amp; Secure</span></div>
+    </div>
+</div>
+""", unsafe_allow_html=True)
 require_access()
 init_database()
 
@@ -858,10 +888,10 @@ records = get_records()
 # ── Sidebar ───────────────────────────────────────────────────
 
 st.sidebar.markdown("""
-<div style="text-align:center;padding:1rem 0 0.5rem;">
-    <div style="font-size:2.5rem;">&#127891;</div>
-    <h2 style="margin:0.25rem 0 0;font-size:1.3rem;">Training Tracker</h2>
-    <p style="margin:0;font-size:0.75rem;opacity:0.6;">Multi-User Edition</p>
+<div style="text-align:center;padding:0.75rem 0 0.5rem;">
+    <div style="font-size:2rem;">&#128218;</div>
+    <div style="color:#e2e8f0;font-size:1.05rem;font-weight:800;margin:0.3rem 0 0;letter-spacing:-0.2px;">Training Tracker</div>
+    <div style="color:#93c5fd;font-size:0.7rem;font-weight:600;letter-spacing:1px;text-transform:uppercase;margin-top:2px;">Gainwell &bull; Tennessee</div>
 </div>
 """, unsafe_allow_html=True)
 
@@ -888,7 +918,7 @@ st.sidebar.caption(
 # DASHBOARD
 # ═══════════════════════════════════════════════════════════════
 if page == "Dashboard":
-    gradient_header("Training Dashboard", "Real-time overview across all departments and employees", "#4f46e5", "#7c3aed")
+    gradient_header("Training Dashboard", "Real-time overview across all departments and employees")
 
     total = len(records)
     completed = int((records["Status"]=="Completed").sum())
@@ -994,7 +1024,7 @@ if page == "Dashboard":
 # ADD TRAINING RECORD
 # ═══════════════════════════════════════════════════════════════
 elif page == "Add Training Record":
-    gradient_header("Add Training Record", "Assign a course to an employee and track completion", "#0891b2", "#0e7490")
+    gradient_header("Add Training Record", "Assign a course to an employee and track completion")
 
     if employees.empty:
         st.warning("No employees found. Please add employees first via **Manage Employees**.")
@@ -1026,7 +1056,7 @@ elif page == "Add Training Record":
 # MANAGE EMPLOYEES
 # ═══════════════════════════════════════════════════════════════
 elif page == "Manage Employees":
-    gradient_header("Manage Employees", "Add new team members or update existing records", "#059669", "#0d9488")
+    gradient_header("Manage Employees", "Add new team members or update existing records")
 
     tab_add, tab_view = st.tabs(["Add New Employee", "Current Employees"])
 
@@ -1084,7 +1114,7 @@ elif page == "Manage Employees":
 # MANAGE COURSES
 # ═══════════════════════════════════════════════════════════════
 elif page == "Manage Courses":
-    gradient_header("Manage Courses", "Add new training courses or remove existing ones", "#d97706", "#b45309")
+    gradient_header("Manage Courses", "Add new training courses or remove existing ones")
 
     tab_add, tab_view = st.tabs(["Add New Course", "Current Courses"])
 
@@ -1139,7 +1169,7 @@ elif page == "Manage Courses":
 # BROWSE DATA
 # ═══════════════════════════════════════════════════════════════
 elif page == "Browse Data":
-    gradient_header("Browse Database", "Filter, search and explore all training data", "#7c3aed", "#6d28d9")
+    gradient_header("Browse Database", "Filter, search and explore all training data")
 
     t1, t2, t3 = st.tabs(["Training Records", "Employees", "Courses"])
 
@@ -1169,7 +1199,7 @@ elif page == "Browse Data":
 # EXPORT
 # ═══════════════════════════════════════════════════════════════
 elif page == "Export":
-    gradient_header("Export Data", "Download your training data as CSV or Excel", "#0f766e", "#0891b2")
+    gradient_header("Export Data", "Download your training data as CSV or Excel")
 
     st.markdown("#### CSV Downloads")
     c1,c2,c3 = st.columns(3)
@@ -1198,7 +1228,7 @@ elif page == "Export":
 # AUDIT LOG
 # ═══════════════════════════════════════════════════════════════
 elif page == "Audit Log":
-    gradient_header("Audit Log", "Full history of every add, delete, and login action", "#1d4ed8", "#4338ca")
+    gradient_header("Audit Log", "Full history of every add, delete, and login action")
 
     audit_df = get_audit_log(500)
 
@@ -1257,7 +1287,7 @@ elif page == "Audit Log":
 # EMAIL REMINDERS
 # ═══════════════════════════════════════════════════════════════
 elif page == "Email Reminders":
-    gradient_header("Email Reminders", "Send overdue and upcoming training reminders to employees", "#be185d", "#9d174d")
+    gradient_header("Email Reminders", "Send overdue and upcoming training reminders to employees")
 
     smtp_ready = bool(SMTP_USER and SMTP_PASS)
     if not smtp_ready:
