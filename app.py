@@ -67,7 +67,7 @@ THEME_CSS = """
     background: linear-gradient(145deg, #f0f4ff 0%, #faf5ff 50%, #f0fff4 100%) !important;
 }
 .block-container {
-    padding-top: 1.2rem;
+    padding-top: 0.2rem;
     padding-bottom: 2rem;
     max-width: 1240px;
 }
@@ -288,15 +288,23 @@ hr {
 ::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 10px; }
 ::-webkit-scrollbar-thumb { background: linear-gradient(#6366f1,#8b5cf6); border-radius: 10px; }
 
-/* ── Hide only toolbar action icons, keep sidebar toggle intact ── */
+/* ── Hide Streamlit top chrome (blank header bar) ── */
+[data-testid="stHeader"] { display: none !important; }
 [data-testid="stDecoration"] { display: none !important; }
 [data-testid="stToolbarActions"] { display: none !important; }
 [data-testid="stStatusWidget"] { display: none !important; }
 #MainMenu { display: none !important; }
 footer { display: none !important; }
-/* Keep collapse arrow always visible */
-[data-testid="collapsedControl"] { display: flex !important; visibility: visible !important; opacity: 1 !important; }
-[data-testid="collapsedControl"] svg { fill: #6366f1 !important; }
+/* Force sidebar always open - never auto-collapse */
+[data-testid="collapsedControl"] { display: none !important; }
+section[data-testid="stSidebar"] {
+    transform: none !important;
+    min-width: 240px !important;
+    width: 240px !important;
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+}
 
 /* ── Sidebar nav: hide radio dot and tighten spacing ── */
 section[data-testid="stSidebar"] .stRadio > div {
