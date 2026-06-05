@@ -284,10 +284,12 @@ hr {
 ::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 10px; }
 ::-webkit-scrollbar-thumb { background: linear-gradient(#6366f1,#8b5cf6); border-radius: 10px; }
 
-/* ── Hide Streamlit toolbar (star, share, user icon) ── */
+/* ── Hide Streamlit toolbar icons only (keep sidebar visible) ── */
 [data-testid="stToolbar"] { display: none !important; }
 [data-testid="stDecoration"] { display: none !important; }
-header[data-testid="stHeader"] { display: none !important; }
+[data-testid="stToolbarActions"] { display: none !important; }
+header[data-testid="stHeader"] { background: transparent !important; }
+header[data-testid="stHeader"] > div:first-child { display: none !important; }
 #MainMenu { display: none !important; }
 footer { display: none !important; }
 
