@@ -1131,15 +1131,27 @@ elif page == "Add Training Record":
     elif courses.empty:
         st.warning("No courses found. Please add courses first via **Manage Courses**.")
     else:
-        with st.form("add_record", clear_on_submit=True):
+        emp_list    = sorted(employees["Employee_Name"].unique().tolist())
+        course_list = sorted(courses["Course_Name"].unique().tolist())
+
+        # Restore last selections so they persist after save
+        last_emp    = st.session_state.get("last_emp", emp_list[0])
+        last_course = st.session_state.get("last_course", course_list[0])
+        last_status = st.session_state.get("last_status", STATUS_OPTIONS[0])
+
+        emp_idx    = emp_list.index(last_emp)    if last_emp    in emp_list    else 0
+        course_idx = course_list.index(last_course) if last_course in course_list else 0
+        status_idx = STATUS_OPTIONS.index(last_status) if last_status in STATUS_OPTIONS else 0
+
+        with st.form("add_record", clear_on_submit=False):
             c1, c2 = st.columns(2)
             with c1:
-                emp = st.selectbox("Employee Name", sorted(employees["Employee_Name"].unique()))
-                status = st.selectbox("Status", STATUS_OPTIONS)
+                emp    = st.selectbox("Employee Name", emp_list, index=emp_idx)
+                status = st.selectbox("Status", STATUS_OPTIONS, index=status_idx)
             with c2:
-                course = st.selectbox("Course Name", sorted(courses["Course_Name"].unique()))
+                course    = st.selectbox("Course Name", course_list, index=course_idx)
                 comp_date = st.date_input("Completion Date", value=date.today())
-            assigned = st.date_input("Assigned Date", value=date.today())
+            assigned  = st.date_input("Assigned Date", value=date.today())
             submitted = st.form_submit_button("Submit Record", use_container_width=True)
 
         if submitted:
@@ -1147,6 +1159,10 @@ elif page == "Add Training Record":
                 add_record(emp, course, status,
                            assigned.strftime("%Y-%m-%d"),
                            comp_date.strftime("%Y-%m-%d"))
+                # Persist selections so they remain after save
+                st.session_state["last_emp"]    = emp
+                st.session_state["last_course"] = course
+                st.session_state["last_status"] = status
                 st.success(f"**Saved:** {emp} assigned to _{course}_ ({status})")
                 st.balloons()
             except Exception as e:
