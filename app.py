@@ -3,6 +3,10 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 import os
+import smtplib
+import ssl
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 from datetime import datetime, date, timedelta
 from pathlib import Path
 from io import BytesIO
@@ -18,6 +22,14 @@ DB_PATH = Path("training_tracker.db")
 EXCEL_SOURCE_PATH = Path("training_db.xlsx")
 DATABASE_URL = os.getenv("DATABASE_URL", "").strip()
 APP_ACCESS_CODE = os.getenv("APP_ACCESS_CODE", "").strip()
+
+# Email config — set these as Streamlit Secrets or environment variables
+SMTP_HOST = os.getenv("SMTP_HOST", "smtp.gmail.com")
+SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
+SMTP_USER = os.getenv("SMTP_USER", "").strip()       # your Gmail address
+SMTP_PASS = os.getenv("SMTP_PASS", "").strip()       # Gmail App Password
+NOTIFY_FROM = os.getenv("NOTIFY_FROM", SMTP_USER)   # sender address
+OVERDUE_DAYS_THRESHOLD = int(os.getenv("OVERDUE_DAYS_THRESHOLD", "3"))  # warn N days before due
 STATUS_OPTIONS = ["Completed", "In Progress", "Not Started", "Overdue"]
 STATUS_COLORS = {
     "Completed": "#00c853",
@@ -346,6 +358,120 @@ def require_access():
             st.error("Invalid access code.")
     st.stop()
 
+# ═══════════════════════════════════════════════════════════════
+# AUDIT TRAIL
+# ═══════════════════════════════════════════════════════════════
+
+def _ensure_audit_table(conn):
+    db_execute(conn, """
+        CREATE TABLE IF NOT EXISTS audit_log (
+            log_id      TEXT PRIMARY KEY,
+            action      TEXT NOT NULL,
+            table_name  TEXT NOT NULL,
+            record_ref  TEXT,
+            detail      TEXT,
+            performed_by TEXT DEFAULT 'user',
+            performed_at TEXT DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+
+def write_audit(action, table_name, record_ref="", detail=""):
+    """Write one audit entry. action = ADDED / DELETED / LOGIN."""
+    with get_db() as conn:
+        _ensure_audit_table(conn)
+        from uuid import uuid4
+        lid = str(uuid4())[:12]
+        performed_by = st.session_state.get("current_user", "user")
+        db_execute(conn,
+            "INSERT INTO audit_log VALUES (?,?,?,?,?,?,CURRENT_TIMESTAMP)",
+            (lid, action, table_name, record_ref, detail, performed_by))
+
+@st.cache_data(ttl=10)
+def get_audit_log(limit=200):
+    with get_db() as conn:
+        _ensure_audit_table(conn)
+        rows = db_execute(
+            conn,
+            "SELECT * FROM audit_log ORDER BY performed_at DESC LIMIT ?",
+            (limit,)
+        ).mappings().all()
+    df = pd.DataFrame(rows)
+    if df.empty:
+        return pd.DataFrame(columns=["log_id","action","table_name","record_ref","detail","performed_by","performed_at"])
+    return df.rename(columns={
+        "log_id": "Log_ID", "action": "Action", "table_name": "Table",
+        "record_ref": "Record", "detail": "Detail",
+        "performed_by": "User", "performed_at": "Timestamp"
+    })
+
+# ═══════════════════════════════════════════════════════════════
+# EMAIL REMINDERS
+# ═══════════════════════════════════════════════════════════════
+
+def _send_email(to_addr, subject, html_body):
+    """Send one email via SMTP TLS. Returns (success, error_msg)."""
+    if not SMTP_USER or not SMTP_PASS:
+        return False, "SMTP_USER or SMTP_PASS not configured."
+    try:
+        msg = MIMEMultipart("alternative")
+        msg["Subject"] = subject
+        msg["From"] = NOTIFY_FROM
+        msg["To"] = to_addr
+        msg.attach(MIMEText(html_body, "html"))
+        ctx = ssl.create_default_context()
+        with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as server:
+            server.ehlo()
+            server.starttls(ctx)
+            server.login(SMTP_USER, SMTP_PASS)
+            server.sendmail(NOTIFY_FROM, to_addr, msg.as_string())
+        return True, ""
+    except Exception as e:
+        return False, str(e)
+
+def send_overdue_reminder(employee_name, course_name, to_email, days_overdue):
+    subject = f"[Training Reminder] Overdue: {course_name}"
+    html = f"""
+    <div style="font-family:Inter,sans-serif;max-width:600px;margin:auto;">
+      <div style="background:linear-gradient(135deg,#667eea,#764ba2);padding:24px 32px;border-radius:12px 12px 0 0;">
+        <h2 style="color:white;margin:0;">Training Reminder</h2>
+      </div>
+      <div style="background:#f9f9ff;padding:24px 32px;border-radius:0 0 12px 12px;border:1px solid #e0e0f0;">
+        <p>Hi <strong>{employee_name}</strong>,</p>
+        <p>This is a reminder that the following training is <span style="color:#ff1744;font-weight:700;">overdue by {days_overdue} day(s)</span>:</p>
+        <table style="width:100%;border-collapse:collapse;margin:16px 0;">
+          <tr style="background:#667eea;color:white;">
+            <th style="padding:10px;text-align:left;">Course</th>
+            <th style="padding:10px;text-align:left;">Status</th>
+          </tr>
+          <tr style="background:white;">
+            <td style="padding:10px;border:1px solid #e0e0f0;">{course_name}</td>
+            <td style="padding:10px;border:1px solid #e0e0f0;"><span style="color:#ff1744;font-weight:600;">Overdue</span></td>
+          </tr>
+        </table>
+        <p>Please complete this training as soon as possible.</p>
+        <p style="color:#6b7280;font-size:0.85rem;">This is an automated reminder from Employee Training Tracker.</p>
+      </div>
+    </div>
+    """
+    return _send_email(to_email, subject, html)
+
+def send_upcoming_reminder(employee_name, course_name, to_email, days_left):
+    subject = f"[Training Reminder] Due Soon: {course_name}"
+    html = f"""
+    <div style="font-family:Inter,sans-serif;max-width:600px;margin:auto;">
+      <div style="background:linear-gradient(135deg,#11998e,#38ef7d);padding:24px 32px;border-radius:12px 12px 0 0;">
+        <h2 style="color:white;margin:0;">Upcoming Training Reminder</h2>
+      </div>
+      <div style="background:#f9fff9;padding:24px 32px;border-radius:0 0 12px 12px;border:1px solid #c8e6c9;">
+        <p>Hi <strong>{employee_name}</strong>,</p>
+        <p>Your training <strong>{course_name}</strong> is due in <span style="color:#ff9100;font-weight:700;">{days_left} day(s)</span>.</p>
+        <p>Please complete it on time to stay compliant.</p>
+        <p style="color:#6b7280;font-size:0.85rem;">This is an automated reminder from Employee Training Tracker.</p>
+      </div>
+    </div>
+    """
+    return _send_email(to_email, subject, html)
+
 def init_database():
     """Create tables and import from Excel on first run, else seed sample data."""
     with get_db() as conn:
@@ -592,6 +718,7 @@ def add_employee(name, department, hire_date):
         db_execute(conn, "INSERT INTO employees VALUES (?,?,?,?)",
                    (eid, name.strip(), department, hire_date))
     st.cache_data.clear()
+    write_audit("ADDED", "employees", eid, f"{name.strip()} / {department}")
 
 def add_course(name, category, duration, due_days):
     with get_db() as conn:
@@ -600,6 +727,7 @@ def add_course(name, category, duration, due_days):
         db_execute(conn, "INSERT INTO courses VALUES (?,?,?,?,?)",
                    (cid, name.strip(), category, duration, int(due_days)))
     st.cache_data.clear()
+    write_audit("ADDED", "courses", cid, f"{name.strip()} / {category}")
 
 def add_record(emp, course, status, assigned, completion):
     with get_db() as conn:
@@ -609,21 +737,25 @@ def add_record(emp, course, status, assigned, completion):
         db_execute(conn, "INSERT INTO training_records VALUES (?,?,?,?,?,?,CURRENT_TIMESTAMP)",
                    (rid, emp, course, status, assigned, cd))
     st.cache_data.clear()
+    write_audit("ADDED", "training_records", rid, f"{emp} → {course} ({status})")
 
 def delete_employee(name):
     with get_db() as conn:
         db_execute(conn, "DELETE FROM employees WHERE employee_name=?", (name,))
     st.cache_data.clear()
+    write_audit("DELETED", "employees", name, f"Removed employee: {name}")
 
 def delete_course(name):
     with get_db() as conn:
         db_execute(conn, "DELETE FROM courses WHERE course_name=?", (name,))
     st.cache_data.clear()
+    write_audit("DELETED", "courses", name, f"Removed course: {name}")
 
 def delete_record(rid):
     with get_db() as conn:
         db_execute(conn, "DELETE FROM training_records WHERE record_id=?", (rid,))
     st.cache_data.clear()
+    write_audit("DELETED", "training_records", rid, f"Removed record: {rid}")
 
 # ── Export helpers ───────────────────────────────────────────
 
@@ -716,6 +848,8 @@ page = st.sidebar.radio("Navigate", [
     "Manage Courses",
     "Browse Data",
     "Export",
+    "Audit Log",
+    "Email Reminders",
 ], label_visibility="collapsed")
 
 st.sidebar.markdown("---")
@@ -1031,3 +1165,153 @@ elif page == "Export":
     st.markdown("---")
     st.markdown("#### Data Preview")
     st.dataframe(records.head(20), use_container_width=True, hide_index=True)
+
+# ═══════════════════════════════════════════════════════════════
+# AUDIT LOG
+# ═══════════════════════════════════════════════════════════════
+elif page == "Audit Log":
+    gradient_header("Audit Log", "Full history of every add, delete, and login action")
+
+    audit_df = get_audit_log(500)
+
+    if audit_df.empty:
+        st.info("No audit entries yet. Actions will appear here automatically.")
+    else:
+        fa1, fa2 = st.columns(2)
+        with fa1:
+            action_filter = st.multiselect("Filter by Action",
+                audit_df["Action"].unique().tolist(),
+                default=audit_df["Action"].unique().tolist())
+        with fa2:
+            table_filter = st.multiselect("Filter by Table",
+                audit_df["Table"].unique().tolist(),
+                default=audit_df["Table"].unique().tolist())
+
+        filtered_audit = audit_df[
+            audit_df["Action"].isin(action_filter) &
+            audit_df["Table"].isin(table_filter)
+        ]
+
+        action_colors = {"ADDED": "#00c853", "DELETED": "#ff1744", "LOGIN": "#0ea5e9"}
+
+        st.markdown(f"**{len(filtered_audit)} entries**")
+        st.dataframe(filtered_audit, use_container_width=True, hide_index=True, height=420)
+
+        st.markdown("---")
+        al1, al2 = st.columns(2)
+        with al1:
+            ac = filtered_audit["Action"].value_counts().reset_index()
+            ac.columns = ["Action", "Count"]
+            fig_a = px.bar(ac, x="Action", y="Count", color="Action",
+                           color_discrete_map=action_colors,
+                           title="Actions Breakdown")
+            fig_a.update_layout(paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+                                margin=dict(t=40,b=10), showlegend=False,
+                                font=dict(family="Inter"))
+            st.plotly_chart(fig_a, use_container_width=True)
+        with al2:
+            tb = filtered_audit["Table"].value_counts().reset_index()
+            tb.columns = ["Table", "Count"]
+            fig_t = px.pie(tb, names="Table", values="Count", hole=0.5,
+                           title="Activity by Table",
+                           color_discrete_sequence=px.colors.sequential.Purpor)
+            fig_t.update_layout(paper_bgcolor="rgba(0,0,0,0)",
+                                margin=dict(t=40,b=10), font=dict(family="Inter"))
+            st.plotly_chart(fig_t, use_container_width=True)
+
+        st.download_button(
+            "Download Audit Log CSV",
+            filtered_audit.to_csv(index=False).encode("utf-8"),
+            "audit_log.csv", "text/csv", use_container_width=True
+        )
+
+# ═══════════════════════════════════════════════════════════════
+# EMAIL REMINDERS
+# ═══════════════════════════════════════════════════════════════
+elif page == "Email Reminders":
+    gradient_header("Email Reminders", "Send overdue and upcoming training reminders to employees")
+
+    smtp_ready = bool(SMTP_USER and SMTP_PASS)
+    if not smtp_ready:
+        st.warning(
+            "Email not configured. Add these to Streamlit Secrets:\n\n"
+            "```\nSMTP_USER = \"your_gmail@gmail.com\"\n"
+            "SMTP_PASS = \"your_gmail_app_password\"\n```\n\n"
+            "Generate Gmail App Password at: https://myaccount.google.com/apppasswords"
+        )
+
+    st.markdown("#### Send Manual Reminder")
+    with st.form("manual_reminder", clear_on_submit=True):
+        mr1, mr2 = st.columns(2)
+        with mr1:
+            rem_emp = st.selectbox("Employee", sorted(employees["Employee_Name"].unique()) if not employees.empty else ["No employees"])
+            rem_email = st.text_input("Recipient Email", placeholder="employee@company.com")
+        with mr2:
+            rem_course = st.selectbox("Course", sorted(courses["Course_Name"].unique()) if not courses.empty else ["No courses"])
+            rem_type = st.selectbox("Reminder Type", ["Overdue", "Upcoming"])
+        rem_days = st.number_input("Days overdue / days left", min_value=1, max_value=365, value=3)
+        rem_btn = st.form_submit_button("Send Reminder", use_container_width=True, disabled=not smtp_ready)
+
+    if rem_btn:
+        if not rem_email or "@" not in rem_email:
+            st.error("Please enter a valid email address.")
+        else:
+            if rem_type == "Overdue":
+                ok, err = send_overdue_reminder(rem_emp, rem_course, rem_email, int(rem_days))
+            else:
+                ok, err = send_upcoming_reminder(rem_emp, rem_course, rem_email, int(rem_days))
+            if ok:
+                st.success(f"Reminder sent to {rem_email}")
+                write_audit("EMAIL_SENT", "reminders", rem_emp, f"{rem_type} reminder for {rem_course} → {rem_email}")
+            else:
+                st.error(f"Failed to send email: {err}")
+
+    st.markdown("---")
+    st.markdown("#### Bulk Overdue Reminders")
+    st.caption("Sends one reminder email per overdue record that has an employee email on file.")
+
+    overdue_records = records[records["Status"] == "Overdue"].copy()
+    if overdue_records.empty:
+        st.success("No overdue records — nothing to remind!")
+    else:
+        overdue_merged = overdue_records.merge(
+            employees[["Employee_Name", "Department"]], on="Employee_Name", how="left"
+        )
+        st.dataframe(overdue_merged[["Employee_Name", "Course_Name", "Assigned_Date"]],
+                     use_container_width=True, hide_index=True)
+        bulk_email = st.text_input(
+            "HR / Manager Email (receives all bulk reminders)",
+            placeholder="hr@company.com"
+        )
+        bulk_btn = st.button(
+            f"Send {len(overdue_records)} Overdue Reminders",
+            disabled=not smtp_ready,
+            type="primary",
+            use_container_width=True
+        )
+        if bulk_btn:
+            if not bulk_email or "@" not in bulk_email:
+                st.error("Please enter a valid email address.")
+            else:
+                sent, failed = 0, 0
+                with st.spinner("Sending reminders..."):
+                    for _, row in overdue_records.iterrows():
+                        assigned = pd.to_datetime(row.get("Assigned_Date"), errors="coerce")
+                        days_late = (date.today() - assigned.date()).days if pd.notna(assigned) else 0
+                        ok, _ = send_overdue_reminder(
+                            row["Employee_Name"], row["Course_Name"], bulk_email, max(days_late, 1)
+                        )
+                        if ok:
+                            sent += 1
+                            write_audit("EMAIL_SENT", "reminders", row["Employee_Name"],
+                                        f"Bulk overdue for {row['Course_Name']} → {bulk_email}")
+                        else:
+                            failed += 1
+                st.success(f"Sent: {sent} | Failed: {failed}")
+
+    st.markdown("---")
+    st.markdown("#### SMTP Configuration Status")
+    c1, c2, c3 = st.columns(3)
+    c1.metric("SMTP Host", SMTP_HOST)
+    c2.metric("SMTP Port", SMTP_PORT)
+    c3.metric("Auth Configured", "Yes" if smtp_ready else "No")

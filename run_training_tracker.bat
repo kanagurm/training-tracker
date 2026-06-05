@@ -1,9 +1,21 @@
 @echo off
-setlocal
-cd /d "%~dp0"
+setlocal ENABLEDELAYEDEXPANSION
+set "APP_DIR=%USERPROFILE%\Downloads\TrainingTracker"
+
+if not exist "%APP_DIR%\app.py" (
+  set "APP_DIR=%USERPROFILE%\Downloads\TrainingTracker_Build"
+)
+
+if not exist "%APP_DIR%\app.py" (
+  echo [ERROR] Could not find app.py.
+  pause
+  exit /b 1
+)
+
+cd /d "%APP_DIR%"
 
 echo ==============================================
-echo   Employee Training Tracker - Launcher
+echo   Employee Training Tracker
 echo ==============================================
 echo.
 
@@ -18,17 +30,11 @@ if exist "venv\Scripts\python.exe" (
     if %errorlevel%==0 (
       set "PY=python"
     ) else (
-      echo [ERROR] Python not found in PATH.
+      echo [ERROR] Python not found. Install Python 3.10+ and add to PATH.
       pause
       exit /b 1
     )
   )
-)
-
-if not exist "app.py" (
-  echo [ERROR] app.py not found in this folder.
-  pause
-  exit /b 1
 )
 
 echo Checking dependencies...
@@ -36,14 +42,15 @@ echo Checking dependencies...
 %PY% -m pip show pandas >nul 2>nul || %PY% -m pip install pandas
 %PY% -m pip show plotly >nul 2>nul || %PY% -m pip install plotly
 %PY% -m pip show openpyxl >nul 2>nul || %PY% -m pip install openpyxl
+%PY% -m pip show sqlalchemy >nul 2>nul || %PY% -m pip install sqlalchemy
 
 echo.
 echo Starting app at http://localhost:8501
+echo Keep this window open while using the app.
+echo.
 %PY% -m streamlit run app.py
 
-if errorlevel 1 (
-  echo.
-  echo [ERROR] App exited with an error.
-  pause
-)
+echo.
+echo App stopped. Press any key to close.
+pause
 endlocal
