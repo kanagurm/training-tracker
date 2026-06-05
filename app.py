@@ -13,6 +13,7 @@ from io import BytesIO
 from contextlib import contextmanager
 import random
 from sqlalchemy import create_engine, text
+from sqlalchemy.pool import QueuePool
 
 # ═══════════════════════════════════════════════════════════════
 # CONFIGURATION
@@ -58,217 +59,230 @@ CATEGORIES = [
 
 THEME_CSS = """
 <style>
-/* ── Global ────────────────────────────────────────────── */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
 
+/* ── Global ─────────────────────────────────────────────── */
 .stApp {
-    font-family: 'Inter', sans-serif;
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    background: linear-gradient(145deg, #f0f4ff 0%, #faf5ff 50%, #f0fff4 100%) !important;
 }
 .block-container {
-    padding-top: 1.5rem;
+    padding-top: 1.2rem;
     padding-bottom: 2rem;
-    max-width: 1200px;
+    max-width: 1240px;
 }
 
-/* ── Sidebar ── Dark Gradient ─────────────────────────── */
+/* ── Sidebar ─────────────────────────────────────────────── */
 section[data-testid="stSidebar"] {
-    background: linear-gradient(180deg, #0f0c29 0%, #302b63 50%, #24243e 100%) !important;
+    background: linear-gradient(160deg, #0d0221 0%, #1a0533 30%, #0d1b4b 70%, #001233 100%) !important;
+    border-right: 1px solid rgba(139,92,246,0.2) !important;
 }
-section[data-testid="stSidebar"] * {
-    color: #c8c8e0 !important;
-}
+section[data-testid="stSidebar"] * { color: #c4b5fd !important; }
 section[data-testid="stSidebar"] h1,
 section[data-testid="stSidebar"] h2,
-section[data-testid="stSidebar"] h3 {
-    color: #ffffff !important;
-    font-weight: 700 !important;
-}
+section[data-testid="stSidebar"] h3 { color: #ffffff !important; font-weight: 800 !important; }
 section[data-testid="stSidebar"] .stRadio label {
-    color: #e0e0f0 !important;
-    font-weight: 500 !important;
-    font-size: 0.95rem !important;
-    padding: 0.3rem 0 !important;
-    transition: all 0.2s ease;
+    color: #ddd6fe !important;
+    font-weight: 600 !important;
+    font-size: 0.92rem !important;
+    padding: 0.35rem 0.6rem !important;
+    border-radius: 0.5rem;
+    transition: all 0.18s ease;
+    display: block;
 }
 section[data-testid="stSidebar"] .stRadio label:hover {
     color: #ffffff !important;
-    padding-left: 0.3rem !important;
+    background: rgba(139,92,246,0.2) !important;
 }
-section[data-testid="stSidebar"] hr {
-    border-color: rgba(255,255,255,0.08) !important;
-}
+section[data-testid="stSidebar"] hr { border-color: rgba(139,92,246,0.15) !important; }
 section[data-testid="stSidebar"] .stCaption {
-    background: rgba(255,255,255,0.05);
+    background: rgba(139,92,246,0.1) !important;
+    border: 1px solid rgba(139,92,246,0.2);
     border-radius: 0.75rem;
     padding: 0.75rem !important;
-    border: 1px solid rgba(255,255,255,0.06);
 }
 
-/* ── Metric Cards ─────────────────────────────────────── */
+/* ── Page background cards ───────────────────────────────── */
+[data-testid="stVerticalBlock"] > div:first-child { }
+
+/* ── Metric Cards ────────────────────────────────────────── */
 div[data-testid="stMetric"] {
-    background: white;
-    border-radius: 1rem;
-    padding: 1.25rem 1.5rem;
-    box-shadow: 0 2px 16px rgba(0,0,0,0.06);
-    border: 1px solid rgba(0,0,0,0.04);
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    background: rgba(255,255,255,0.9) !important;
+    border-radius: 1.1rem !important;
+    padding: 1.3rem 1.5rem !important;
+    box-shadow: 0 4px 24px rgba(99,102,241,0.10), 0 1px 4px rgba(0,0,0,0.04) !important;
+    border: 1px solid rgba(99,102,241,0.12) !important;
+    backdrop-filter: blur(8px);
+    transition: transform 0.2s ease, box-shadow 0.2s ease !important;
 }
 div[data-testid="stMetric"]:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+    transform: translateY(-4px) !important;
+    box-shadow: 0 12px 32px rgba(99,102,241,0.18) !important;
 }
 div[data-testid="stMetric"] label {
-    color: #6b7280 !important;
-    font-weight: 600 !important;
-    font-size: 0.8rem !important;
+    color: #6366f1 !important;
+    font-weight: 700 !important;
+    font-size: 0.72rem !important;
     text-transform: uppercase;
-    letter-spacing: 0.5px;
+    letter-spacing: 1px;
 }
 div[data-testid="stMetric"] [data-testid="stMetricValue"] {
     font-weight: 800 !important;
-    font-size: 2rem !important;
-    color: #1a1a2e !important;
+    font-size: 2.1rem !important;
+    color: #1e1b4b !important;
+    letter-spacing: -0.5px;
 }
 
-/* ── Forms ─────────────────────────────────────────────── */
+/* ── Forms ───────────────────────────────────────────────── */
 [data-testid="stForm"] {
-    background: white;
-    padding: 2rem 2.5rem;
-    border-radius: 1.25rem;
-    box-shadow: 0 4px 20px rgba(0,0,0,0.06);
-    border: 1px solid rgba(0,0,0,0.04);
+    background: rgba(255,255,255,0.95) !important;
+    padding: 2rem 2.5rem !important;
+    border-radius: 1.4rem !important;
+    box-shadow: 0 8px 32px rgba(99,102,241,0.10) !important;
+    border: 1px solid rgba(99,102,241,0.10) !important;
+    backdrop-filter: blur(12px);
 }
 
-/* ── Submit Button ─────────────────────────────────────── */
+/* ── Submit Button ───────────────────────────────────────── */
 .stFormSubmitButton > button {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+    background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #a855f7 100%) !important;
     color: white !important;
     border: none !important;
-    border-radius: 0.75rem !important;
-    padding: 0.7rem 2.5rem !important;
-    font-weight: 700 !important;
+    border-radius: 0.85rem !important;
+    padding: 0.75rem 2.5rem !important;
+    font-weight: 800 !important;
     font-size: 1rem !important;
-    letter-spacing: 0.5px;
-    box-shadow: 0 4px 18px rgba(102, 126, 234, 0.35);
-    transition: all 0.3s cubic-bezier(0.4,0,0.2,1) !important;
+    letter-spacing: 0.3px;
+    box-shadow: 0 6px 20px rgba(99,102,241,0.40) !important;
+    transition: all 0.25s cubic-bezier(0.4,0,0.2,1) !important;
 }
 .stFormSubmitButton > button:hover {
-    transform: translateY(-2px) !important;
-    box-shadow: 0 8px 25px rgba(102, 126, 234, 0.45) !important;
-}
-.stFormSubmitButton > button:active {
-    transform: translateY(0) !important;
+    transform: translateY(-3px) scale(1.02) !important;
+    box-shadow: 0 12px 28px rgba(99,102,241,0.50) !important;
 }
 
-/* ── Regular Buttons ───────────────────────────────────── */
+/* ── Regular Buttons ─────────────────────────────────────── */
 .stButton > button {
-    border-radius: 0.75rem !important;
-    font-weight: 600 !important;
-    padding: 0.5rem 1.5rem !important;
-    transition: all 0.3s ease !important;
-    border: 2px solid #667eea !important;
-    color: #667eea !important;
-    background: white !important;
+    border-radius: 0.85rem !important;
+    font-weight: 700 !important;
+    padding: 0.55rem 1.5rem !important;
+    transition: all 0.22s ease !important;
+    border: 2px solid #6366f1 !important;
+    color: #6366f1 !important;
+    background: rgba(99,102,241,0.05) !important;
 }
 .stButton > button:hover {
-    background: #667eea !important;
+    background: linear-gradient(135deg,#6366f1,#8b5cf6) !important;
     color: white !important;
-    transform: translateY(-1px) !important;
+    border-color: transparent !important;
+    transform: translateY(-2px) !important;
+    box-shadow: 0 6px 18px rgba(99,102,241,0.35) !important;
 }
 button[kind="primary"] {
-    background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%) !important;
+    background: linear-gradient(135deg, #f43f5e 0%, #e11d48 100%) !important;
     color: white !important;
     border: none !important;
+    box-shadow: 0 4px 14px rgba(244,63,94,0.35) !important;
 }
 
-/* ── Download Buttons ──────────────────────────────────── */
+/* ── Download Buttons ────────────────────────────────────── */
 .stDownloadButton > button {
-    background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%) !important;
+    background: linear-gradient(135deg, #059669 0%, #10b981 50%, #34d399 100%) !important;
     color: white !important;
     border: none !important;
-    border-radius: 0.75rem !important;
+    border-radius: 0.85rem !important;
     font-weight: 700 !important;
-    box-shadow: 0 4px 15px rgba(17, 153, 142, 0.3);
-    transition: all 0.3s ease !important;
+    box-shadow: 0 4px 16px rgba(5,150,105,0.32) !important;
+    transition: all 0.25s ease !important;
 }
 .stDownloadButton > button:hover {
     transform: translateY(-2px) !important;
-    box-shadow: 0 6px 20px rgba(17, 153, 142, 0.4) !important;
+    box-shadow: 0 8px 22px rgba(5,150,105,0.42) !important;
 }
 
-/* ── Tabs ──────────────────────────────────────────────── */
+/* ── Tabs ────────────────────────────────────────────────── */
 .stTabs [data-baseweb="tab-list"] {
-    gap: 0.25rem;
-    background: white;
+    gap: 0.3rem;
+    background: rgba(255,255,255,0.85);
     border-radius: 1rem;
-    padding: 0.35rem;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.04);
-    border: 1px solid rgba(0,0,0,0.04);
+    padding: 0.4rem;
+    box-shadow: 0 2px 12px rgba(99,102,241,0.08);
+    border: 1px solid rgba(99,102,241,0.10);
 }
 .stTabs [data-baseweb="tab"] {
     border-radius: 0.75rem;
-    padding: 0.6rem 1.5rem;
-    font-weight: 600;
-    font-size: 0.9rem;
+    padding: 0.55rem 1.4rem;
+    font-weight: 700;
+    font-size: 0.88rem;
+    color: #6366f1 !important;
+    transition: all 0.2s ease;
 }
 .stTabs [aria-selected="true"] {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+    background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%) !important;
     color: white !important;
-    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+    box-shadow: 0 4px 14px rgba(99,102,241,0.35);
 }
 
-/* ── Alerts ────────────────────────────────────────────── */
-.stSuccess { border-radius: 0.75rem; }
-.stWarning { border-radius: 0.75rem; }
-.stError   { border-radius: 0.75rem; }
-.stInfo    { border-radius: 0.75rem; }
+/* ── Alerts ──────────────────────────────────────────────── */
+.stSuccess, .stWarning, .stError, .stInfo { border-radius: 0.85rem !important; }
 
-/* ── DataFrames ────────────────────────────────────────── */
+/* ── DataFrames ──────────────────────────────────────────── */
 [data-testid="stDataFrame"] {
-    border-radius: 0.75rem;
+    border-radius: 1rem;
     overflow: hidden;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+    box-shadow: 0 4px 16px rgba(99,102,241,0.08);
+    border: 1px solid rgba(99,102,241,0.10) !important;
 }
 
-/* ── Select boxes / Inputs ─────────────────────────────── */
+/* ── Inputs ──────────────────────────────────────────────── */
 .stSelectbox > div > div,
 .stTextInput > div > div > input,
 .stNumberInput > div > div > input,
 .stDateInput > div > div > input {
-    border-radius: 0.6rem !important;
-    border: 2px solid #e0e0e0 !important;
-    transition: border-color 0.2s ease !important;
+    border-radius: 0.7rem !important;
+    border: 2px solid #e0e7ff !important;
+    background: rgba(255,255,255,0.95) !important;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease !important;
+    font-family: 'Plus Jakarta Sans', sans-serif !important;
 }
 .stSelectbox > div > div:focus-within,
 .stTextInput > div > div > input:focus,
-.stNumberInput > div > div > input:focus {
-    border-color: #667eea !important;
-    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.15) !important;
+.stNumberInput > div > div > input:focus,
+.stDateInput > div > div > input:focus {
+    border-color: #6366f1 !important;
+    box-shadow: 0 0 0 3px rgba(99,102,241,0.18) !important;
 }
 
-/* ── Multiselect ───────────────────────────────────────── */
-.stMultiSelect > div > div {
-    border-radius: 0.6rem !important;
-}
+/* ── Tags ────────────────────────────────────────────────── */
 span[data-baseweb="tag"] {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+    background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%) !important;
     border-radius: 0.5rem !important;
     color: white !important;
+    font-weight: 600 !important;
 }
 
-/* ── Divider ───────────────────────────────────────────── */
+/* ── Divider ─────────────────────────────────────────────── */
 hr {
     border: none;
     height: 1px;
-    background: linear-gradient(90deg, transparent 0%, #d0d0e0 50%, transparent 100%);
+    background: linear-gradient(90deg, transparent 0%, #c7d2fe 50%, transparent 100%);
     margin: 1.5rem 0;
 }
 
-/* ── Expander ──────────────────────────────────────────── */
+/* ── Spinner ─────────────────────────────────────────────── */
+.stSpinner > div { border-top-color: #6366f1 !important; }
+
+/* ── Expander ────────────────────────────────────────────── */
 .streamlit-expanderHeader {
-    font-weight: 600;
+    font-weight: 700;
     border-radius: 0.75rem;
+    background: rgba(99,102,241,0.05) !important;
 }
+
+/* ── Scrollbar ───────────────────────────────────────────── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 10px; }
+::-webkit-scrollbar-thumb { background: linear-gradient(#6366f1,#8b5cf6); border-radius: 10px; }
 </style>
 """
 
@@ -276,7 +290,9 @@ hr {
 # DATABASE LAYER (PostgreSQL for cloud + SQLite fallback)
 # ═══════════════════════════════════════════════════════════════
 
+@st.cache_resource
 def _build_engine():
+    """Build DB engine ONCE per server process — avoids reconnect on every request."""
     url = DATABASE_URL
     if url.startswith("postgres://"):
         url = url.replace("postgres://", "postgresql+psycopg2://", 1)
@@ -290,7 +306,15 @@ def _build_engine():
             future=True,
         )
 
-    return create_engine(url, pool_pre_ping=True, future=True)
+    return create_engine(
+        url,
+        poolclass=QueuePool,
+        pool_size=5,
+        max_overflow=10,
+        pool_pre_ping=True,
+        pool_recycle=300,
+        future=True,
+    )
 
 
 DB_ENGINE = _build_engine()
@@ -386,7 +410,7 @@ def write_audit(action, table_name, record_ref="", detail=""):
             "INSERT INTO audit_log VALUES (?,?,?,?,?,?,CURRENT_TIMESTAMP)",
             (lid, action, table_name, record_ref, detail, performed_by))
 
-@st.cache_data(ttl=10)
+@st.cache_data(ttl=30)
 def get_audit_log(limit=200):
     with get_db() as conn:
         _ensure_audit_table(conn)
@@ -658,7 +682,7 @@ def _seed_sample_data(conn):
 
 # ── Read functions (cached with short TTL so all users see updates) ──
 
-@st.cache_data(ttl=5)
+@st.cache_data(ttl=30)
 def get_employees():
     with get_db() as conn:
         rows = db_execute(conn, "SELECT * FROM employees ORDER BY employee_name").mappings().all()
@@ -674,7 +698,7 @@ def get_employees():
     df["Hire_Date"] = pd.to_datetime(df["Hire_Date"], errors="coerce")
     return df
 
-@st.cache_data(ttl=5)
+@st.cache_data(ttl=30)
 def get_courses():
     with get_db() as conn:
         rows = db_execute(conn, "SELECT * FROM courses ORDER BY course_name").mappings().all()
@@ -689,7 +713,7 @@ def get_courses():
         "due_within_days": "Due_Within_Days",
     })
 
-@st.cache_data(ttl=5)
+@st.cache_data(ttl=30)
 def get_records():
     with get_db() as conn:
         rows = db_execute(conn, "SELECT * FROM training_records ORDER BY created_at DESC").mappings().all()
@@ -717,7 +741,7 @@ def add_employee(name, department, hire_date):
         eid = f"EMP{str(count+1).zfill(3)}"
         db_execute(conn, "INSERT INTO employees VALUES (?,?,?,?)",
                    (eid, name.strip(), department, hire_date))
-    st.cache_data.clear()
+    get_employees.clear()
     write_audit("ADDED", "employees", eid, f"{name.strip()} / {department}")
 
 def add_course(name, category, duration, due_days):
@@ -726,7 +750,7 @@ def add_course(name, category, duration, due_days):
         cid = f"CRS{str(count+1).zfill(3)}"
         db_execute(conn, "INSERT INTO courses VALUES (?,?,?,?,?)",
                    (cid, name.strip(), category, duration, int(due_days)))
-    st.cache_data.clear()
+    get_courses.clear()
     write_audit("ADDED", "courses", cid, f"{name.strip()} / {category}")
 
 def add_record(emp, course, status, assigned, completion):
@@ -736,25 +760,25 @@ def add_record(emp, course, status, assigned, completion):
         cd = completion if status == "Completed" else ""
         db_execute(conn, "INSERT INTO training_records VALUES (?,?,?,?,?,?,CURRENT_TIMESTAMP)",
                    (rid, emp, course, status, assigned, cd))
-    st.cache_data.clear()
+    get_records.clear()
     write_audit("ADDED", "training_records", rid, f"{emp} → {course} ({status})")
 
 def delete_employee(name):
     with get_db() as conn:
         db_execute(conn, "DELETE FROM employees WHERE employee_name=?", (name,))
-    st.cache_data.clear()
+    get_employees.clear()
     write_audit("DELETED", "employees", name, f"Removed employee: {name}")
 
 def delete_course(name):
     with get_db() as conn:
         db_execute(conn, "DELETE FROM courses WHERE course_name=?", (name,))
-    st.cache_data.clear()
+    get_courses.clear()
     write_audit("DELETED", "courses", name, f"Removed course: {name}")
 
 def delete_record(rid):
     with get_db() as conn:
         db_execute(conn, "DELETE FROM training_records WHERE record_id=?", (rid,))
-    st.cache_data.clear()
+    get_records.clear()
     write_audit("DELETED", "training_records", rid, f"Removed record: {rid}")
 
 # ── Export helpers ───────────────────────────────────────────
