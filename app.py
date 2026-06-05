@@ -290,6 +290,42 @@ hr {
 header[data-testid="stHeader"] { display: none !important; }
 #MainMenu { display: none !important; }
 footer { display: none !important; }
+
+/* ── Sidebar nav: hide radio dot and tighten spacing ── */
+section[data-testid="stSidebar"] .stRadio > div {
+    gap: 0 !important;
+}
+section[data-testid="stSidebar"] .stRadio > div > label {
+    display: flex !important;
+    align-items: center !important;
+    padding: 0.6rem 1rem !important;
+    border-radius: 0.65rem !important;
+    margin: 1px 0 !important;
+    font-size: 0.88rem !important;
+    font-weight: 600 !important;
+    color: #c4b5fd !important;
+    cursor: pointer;
+    border: 1px solid transparent !important;
+    transition: all 0.18s ease !important;
+    width: 100%;
+}
+section[data-testid="stSidebar"] .stRadio > div > label:hover {
+    background: rgba(139,92,246,0.15) !important;
+    color: #ffffff !important;
+    border-color: rgba(139,92,246,0.3) !important;
+    padding-left: 1.3rem !important;
+}
+section[data-testid="stSidebar"] .stRadio > div > label[data-checked="true"],
+section[data-testid="stSidebar"] .stRadio > div > label:has(input:checked) {
+    background: linear-gradient(90deg, rgba(201,168,76,0.18) 0%, rgba(201,168,76,0.05) 100%) !important;
+    color: #e8c96a !important;
+    border-color: rgba(201,168,76,0.4) !important;
+    border-left: 3px solid #c9a84c !important;
+    font-weight: 700 !important;
+}
+section[data-testid="stSidebar"] .stRadio > div > label > div:first-child {
+    display: none !important;
+}
 </style>
 """
 
@@ -914,23 +950,29 @@ st.sidebar.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-page = st.sidebar.radio("Navigate", [
-    "Dashboard",
-    "Add Training Record",
-    "Manage Employees",
-    "Manage Courses",
-    "Browse Data",
-    "Export",
-    "Audit Log",
-    "Email Reminders",
-], label_visibility="collapsed")
+st.sidebar.markdown("<div style='padding:0.3rem 0.5rem 0.1rem;color:#94a3b8;font-size:0.65rem;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;'>Navigation</div>", unsafe_allow_html=True)
+
+NAV_ITEMS = [
+    ("🏠", "Dashboard"),
+    ("➕", "Add Training Record"),
+    ("👥", "Manage Employees"),
+    ("📚", "Manage Courses"),
+    ("🔍", "Browse Data"),
+    ("📤", "Export"),
+    ("📋", "Audit Log"),
+    ("📧", "Email Reminders"),
+]
+NAV_LABELS = [f"{icon}  {label}" for icon, label in NAV_ITEMS]
+
+selected_label = st.sidebar.radio("Navigate", NAV_LABELS, label_visibility="collapsed")
+page = selected_label.split("  ", 1)[-1]
 
 st.sidebar.markdown("---")
 db_label = "PostgreSQL" if not DB_IS_SQLITE else "SQLite"
 st.sidebar.caption(
     f"**Database:** {db_label} (multi-user)\n\n"
     f"**Employees:** {len(employees)} | **Courses:** {len(courses)} | **Records:** {len(records)}\n\n"
-    f"_Data auto-refreshes every 5 seconds_"
+    f"_Data auto-refreshes every 30 seconds_"
 )
 
 # ═══════════════════════════════════════════════════════════════
