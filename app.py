@@ -1000,6 +1000,7 @@ NAV_ITEMS = [
     ("📤", "Export"),
     ("📋", "Audit Log"),
     ("📧", "Email Reminders"),
+    ("📥", "Import from Excel"),
 ]
 NAV_LABELS = [f"{icon}  {label}" for icon, label in NAV_ITEMS]
 
@@ -1343,9 +1344,171 @@ elif page == "Export":
     st.dataframe(records.head(20), use_container_width=True, hide_index=True)
 
 # ═══════════════════════════════════════════════════════════════
-# AUDIT LOG
+# IMPORT FROM EXCEL
 # ═══════════════════════════════════════════════════════════════
-elif page == "Audit Log":
+elif page == "Import from Excel":
+    gradient_header("Import from Excel", "Upload a workbook to bulk-import Employees, Courses or Training Records")
+
+    def _pick(df, candidates):
+        lmap = {str(c).strip().lower(): c for c in df.columns}
+        for cand in candidates:
+            if cand.lower() in lmap:
+                return lmap[cand.lower()]
+        return None
+
+    uploaded = st.file_uploader(
+        "Choose an Excel file (.xlsx)",
+        type=["xlsx"],
+        help="File must contain at least one of: Employees, Courses, Training_Records sheets"
+    )
+
+    if uploaded:
+        try:
+            xls = pd.ExcelFile(uploaded)
+        except Exception as e:
+            st.error(f"Cannot read file: {e}")
+            st.stop()
+
+        available = {s.lower(): s for s in xls.sheet_names}
+        st.success(f"Loaded **{uploaded.name}** — sheets found: {', '.join(xls.sheet_names)}")
+
+        ix1, ix2 = st.columns(2)
+        with ix1:
+            import_mode = st.radio("Import Mode",
+                ["Append (keep existing rows)", "Replace (clear table first)"],
+                help="Append adds new rows. Replace deletes existing data first."
+            )
+        with ix2:
+            sheets_to_import = st.multiselect(
+                "Sheets to import",
+                [s for s in ["Employees", "Courses", "Training_Records"]
+                 if s.lower() in available or s.lower().replace("_"," ") in available],
+                default=[s for s in ["Employees", "Courses", "Training_Records"]
+                         if s.lower() in available or s.lower().replace("_"," ") in available]
+            )
+
+        mode = "replace" if "Replace" in import_mode else "append"
+
+        # Preview tabs
+        if sheets_to_import:
+            st.markdown("#### Preview (first 10 rows)")
+            preview_tabs = st.tabs(sheets_to_import)
+            for tab, sname in zip(preview_tabs, sheets_to_import):
+                real = available.get(sname.lower()) or available.get(sname.lower().replace("_"," "))
+                if real:
+                    with tab:
+                        st.dataframe(pd.read_excel(uploaded, sheet_name=real).head(10),
+                                     use_container_width=True, hide_index=True)
+
+        st.markdown("---")
+        if st.button("Import Now", type="primary", use_container_width=True):
+            results = []
+            with get_db() as conn:
+                for sname in sheets_to_import:
+                    real = available.get(sname.lower()) or available.get(sname.lower().replace("_"," "))
+                    if not real:
+                        results.append((sname, 0, 0, "sheet not found"))
+                        continue
+                    df = pd.read_excel(uploaded, sheet_name=real)
+
+                    if sname == "Employees":
+                        n_col = _pick(df, ["Employee Name","Employee_Name","Name","Employee"])
+                        d_col = _pick(df, ["Department","Dept"])
+                        h_col = _pick(df, ["Hire Date","Hire_Date","Start Date"])
+                        if not n_col:
+                            results.append((sname, 0, 0, "Name column not found")); continue
+                        if mode == "replace":
+                            db_execute(conn, "DELETE FROM training_records")
+                            db_execute(conn, "DELETE FROM employees")
+                        cnt = db_execute(conn, "SELECT COUNT(*) FROM employees").fetchone()[0]
+                        ins = skip = 0
+                        for i, row in enumerate(df.dropna(subset=[n_col]).itertuples(index=False), 1):
+                            rm = dict(zip(df.columns, row))
+                            nm = str(rm[n_col]).strip()
+                            dp = str(rm.get(d_col,"Other") or "Other").strip() if d_col else "Other"
+                            hd = pd.to_datetime(rm.get(h_col), errors="coerce") if h_col else pd.NaT
+                            ht = hd.strftime("%Y-%m-%d") if pd.notna(hd) else date.today().strftime("%Y-%m-%d")
+                            try:
+                                db_execute(conn, "INSERT INTO employees VALUES (?,?,?,?)",
+                                           (f"EMP{str(cnt+i).zfill(3)}", nm, dp or "Other", ht))
+                                ins += 1
+                            except Exception: skip += 1
+                        results.append((sname, ins, skip, ""))
+
+                    elif sname == "Courses":
+                        n_col = _pick(df, ["Course Name","Course_Name","Course","Training"])
+                        if not n_col:
+                            results.append((sname, 0, 0, "Name column not found")); continue
+                        if mode == "replace":
+                            db_execute(conn, "DELETE FROM training_records")
+                            db_execute(conn, "DELETE FROM courses")
+                        cnt  = db_execute(conn, "SELECT COUNT(*) FROM courses").fetchone()[0]
+                        c_col = _pick(df, ["Category","Type"])
+                        d_col = _pick(df, ["Duration Hours","Duration_Hours","Duration"])
+                        dd_col = _pick(df, ["Due Within Days","Due_Within_Days","Due Days"])
+                        ins = skip = 0
+                        for i, row in enumerate(df.dropna(subset=[n_col]).itertuples(index=False), 1):
+                            rm  = dict(zip(df.columns, row))
+                            nm  = str(rm[n_col]).strip()
+                            cat = str(rm.get(c_col,"Other") or "Other").strip() if c_col else "Other"
+                            try: dur = float(rm.get(d_col,1) or 1) if d_col else 1.0
+                            except: dur = 1.0
+                            try: dud = int(rm.get(dd_col,30) or 30) if dd_col else 30
+                            except: dud = 30
+                            try:
+                                db_execute(conn, "INSERT INTO courses VALUES (?,?,?,?,?)",
+                                           (f"CRS{str(cnt+i).zfill(3)}", nm, cat or "Other", dur, dud))
+                                ins += 1
+                            except Exception: skip += 1
+                        results.append((sname, ins, skip, ""))
+
+                    elif sname == "Training_Records":
+                        e_col = _pick(df, ["Employee Name","Employee_Name","Employee"])
+                        c_col = _pick(df, ["Course Name","Course_Name","Course"])
+                        if not e_col or not c_col:
+                            results.append((sname, 0, 0, "Employee or Course column not found")); continue
+                        if mode == "replace":
+                            db_execute(conn, "DELETE FROM training_records")
+                        cnt   = db_execute(conn, "SELECT COUNT(*) FROM training_records").fetchone()[0]
+                        s_col = _pick(df, ["Status","Training Status"])
+                        comp_c = _pick(df, ["Completion Date","Completion_Date","Date"])
+                        asgn_c = _pick(df, ["Assigned Date","Assigned_Date","Enrollment Date"])
+                        ins = skip = 0
+                        for i, row in enumerate(df.dropna(subset=[e_col,c_col]).itertuples(index=False), 1):
+                            rm  = dict(zip(df.columns, row))
+                            en  = str(rm[e_col]).strip()
+                            cn  = str(rm[c_col]).strip()
+                            st_ = str(rm.get(s_col,"Not Started") or "Not Started").strip() if s_col else "Not Started"
+                            cdt = pd.to_datetime(rm.get(comp_c), errors="coerce") if comp_c else pd.NaT
+                            adt = pd.to_datetime(rm.get(asgn_c), errors="coerce") if asgn_c else pd.NaT
+                            ct  = cdt.strftime("%Y-%m-%d") if pd.notna(cdt) else ""
+                            at  = adt.strftime("%Y-%m-%d") if pd.notna(adt) else date.today().strftime("%Y-%m-%d")
+                            try:
+                                db_execute(conn, "INSERT INTO training_records VALUES (?,?,?,?,?,?,CURRENT_TIMESTAMP)",
+                                           (f"REC{str(cnt+i).zfill(4)}", en, cn, st_, at, ct))
+                                ins += 1
+                            except Exception: skip += 1
+                        results.append((sname, ins, skip, ""))
+
+            get_employees.clear()
+            get_courses.clear()
+            get_records.clear()
+
+            st.markdown("#### Import Results")
+            for sname, ins, skip, err in results:
+                if err:
+                    st.error(f"**{sname}**: {err}")
+                else:
+                    st.success(f"**{sname}**: {ins} rows imported, {skip} skipped (duplicates)")
+            write_audit("IMPORT", "excel", uploaded.name, f"Mode={mode}, sheets={sheets_to_import}")
+    else:
+        st.info("Upload an Excel file above to get started. The file should have sheets named **Employees**, **Courses**, and/or **Training_Records**.")
+        st.markdown("""**Required column names per sheet:**
+| Sheet | Required columns |
+|---|---|
+| Employees | Employee Name, Department, Hire Date |
+| Courses | Course Name, Category, Duration Hours, Due Within Days |
+| Training_Records | Employee Name, Course Name, Status, Completion Date, Assigned Date |""")
     gradient_header("Audit Log", "Full history of every add, delete, and login action")
 
     audit_df = get_audit_log(500)
