@@ -796,20 +796,21 @@ def to_excel_bytes(emp, crs, rec):
 
 # ── UI Helpers ───────────────────────────────────────────────
 
-def gradient_header(title, subtitle="", color_start="#1e3a5f", color_end="#2563eb"):
+def gradient_header(title, subtitle="", color_start="#1a1a2e", color_end="#0f3460"):
     sub_html = ""
     if subtitle:
-        sub_html = f'<p style="color:rgba(255,255,255,0.82);margin:0.35rem 0 0;font-size:0.97rem;font-weight:500;">{subtitle}</p>'
+        sub_html = f'<p style="color:rgba(201,168,76,0.9);margin:0.35rem 0 0;font-size:0.93rem;font-weight:500;">{subtitle}</p>'
     st.markdown(f"""
     <div style="
-        background: linear-gradient(135deg, #1e3a5f 0%, #2563eb 100%);
-        padding: 1.4rem 2rem;
-        border-radius: 1.1rem;
-        margin-bottom: 1.3rem;
-        box-shadow: 0 6px 24px rgba(37,99,235,0.18);
-        border-left: 5px solid #60a5fa;
+        background: linear-gradient(135deg, #1a1a2e 0%, #0f3460 100%);
+        padding: 1.3rem 1.8rem;
+        border-radius: 1rem;
+        margin-bottom: 1.2rem;
+        box-shadow: 0 6px 20px rgba(0,0,0,0.20);
+        border-left: 5px solid #c9a84c;
+        border-bottom: 1px solid rgba(201,168,76,0.2);
     ">
-        <h1 style="color:white;margin:0;font-size:1.6rem;font-weight:800;letter-spacing:-0.2px;font-family:'Plus Jakarta Sans',sans-serif;">{title}</h1>
+        <h1 style="color:#ffffff;margin:0;font-size:1.55rem;font-weight:800;letter-spacing:-0.2px;font-family:'Plus Jakarta Sans',sans-serif;">{title}</h1>
         {sub_html}
     </div>
     """, unsafe_allow_html=True)
@@ -853,28 +854,65 @@ st.markdown(THEME_CSS, unsafe_allow_html=True)
 # ── Top Branding Bar ──────────────────────────────────────────
 st.markdown("""
 <div style="
-    background: linear-gradient(90deg, #0a1628 0%, #1e3a5f 60%, #1e40af 100%);
-    padding: 0.7rem 2rem;
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 40%, #0f3460 100%);
+    padding: 0.85rem 2.2rem;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    border-radius: 0 0 1rem 1rem;
-    margin-bottom: 1rem;
-    box-shadow: 0 4px 16px rgba(10,22,40,0.22);
+    border-radius: 0 0 1.1rem 1.1rem;
+    margin-bottom: 1.2rem;
+    box-shadow: 0 6px 24px rgba(0,0,0,0.35);
+    border-bottom: 3px solid #c9a84c;
 ">
-    <div style="display:flex;align-items:center;gap:1rem;">
-        <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/9/9b/Seal_of_Tennessee.svg/120px-Seal_of_Tennessee.svg.png"
-             style="height:44px;border-radius:50%;background:white;padding:3px;" alt="Tennessee"/>
+    <!-- LEFT: Tennessee seal + title -->
+    <div style="display:flex;align-items:center;gap:1.1rem;">
+        <div style="
+            background:white;
+            border-radius:50%;
+            width:54px;height:54px;
+            display:flex;align-items:center;justify-content:center;
+            box-shadow:0 2px 10px rgba(0,0,0,0.3);
+            flex-shrink:0;
+            overflow:hidden;
+        ">
+            <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/9/9b/Seal_of_Tennessee.svg/100px-Seal_of_Tennessee.svg.png"
+                 style="width:48px;height:48px;" alt="Tennessee State Seal"
+                 onerror="this.parentElement.innerHTML='<span style=font-size:1.6rem>&#127950;</span>'"/>
+        </div>
         <div>
-            <div style="color:#93c5fd;font-size:0.72rem;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;">Tennessee State &nbsp;|&nbsp; Gainwell Technologies</div>
-            <div style="color:white;font-size:1.25rem;font-weight:800;letter-spacing:-0.2px;font-family:'Plus Jakarta Sans',sans-serif;">&#128218; Employee Training Tracker</div>
+            <div style="color:#c9a84c;font-size:0.68rem;font-weight:700;letter-spacing:2px;text-transform:uppercase;">State of Tennessee &nbsp;▪▪▪&nbsp; Gainwell Technologies</div>
+            <div style="color:#ffffff;font-size:1.3rem;font-weight:800;letter-spacing:-0.2px;margin-top:1px;font-family:'Plus Jakarta Sans',sans-serif;">
+                &#128218;&nbsp; Employee Training Tracker
+            </div>
         </div>
     </div>
-    <div style="display:flex;align-items:center;gap:0.75rem;">
-        <img src="https://www.gainwelltechnologies.com/wp-content/uploads/2021/03/gainwell-logo-white.svg"
-             onerror="this.style.display='none'"
-             style="height:32px;filter:brightness(0) invert(1);opacity:0.92;" alt="Gainwell Technologies"/>
-        <div style="color:#bfdbfe;font-size:0.75rem;text-align:right;line-height:1.4;">Multi-User Platform<br><span style='color:#60a5fa;font-weight:700;'>Live &amp; Secure</span></div>
+    <!-- RIGHT: Gainwell styled text logo + badge -->
+    <div style="display:flex;align-items:center;gap:1.2rem;">
+        <div style="text-align:right;">
+            <div style="
+                color:#c9a84c;
+                font-size:1.05rem;
+                font-weight:800;
+                letter-spacing:0.5px;
+                font-family:'Plus Jakarta Sans',sans-serif;
+                text-shadow:0 1px 4px rgba(0,0,0,0.4);
+            ">GAINWELL</div>
+            <div style="color:#94a3b8;font-size:0.62rem;font-weight:600;letter-spacing:2px;text-transform:uppercase;margin-top:1px;">Technologies</div>
+        </div>
+        <div style="width:1px;height:36px;background:rgba(201,168,76,0.35);"></div>
+        <div style="text-align:right;">
+            <div style="
+                background:linear-gradient(135deg,#c9a84c,#e8c96a);
+                color:#1a1a2e;
+                font-size:0.68rem;
+                font-weight:800;
+                padding:0.25rem 0.7rem;
+                border-radius:999px;
+                letter-spacing:0.5px;
+                text-transform:uppercase;
+            ">&#9679; Live &amp; Secure</div>
+            <div style="color:#64748b;font-size:0.6rem;margin-top:3px;">Multi-User Platform</div>
+        </div>
     </div>
 </div>
 """, unsafe_allow_html=True)
@@ -888,10 +926,17 @@ records = get_records()
 # ── Sidebar ───────────────────────────────────────────────────
 
 st.sidebar.markdown("""
-<div style="text-align:center;padding:0.75rem 0 0.5rem;">
-    <div style="font-size:2rem;">&#128218;</div>
-    <div style="color:#e2e8f0;font-size:1.05rem;font-weight:800;margin:0.3rem 0 0;letter-spacing:-0.2px;">Training Tracker</div>
-    <div style="color:#93c5fd;font-size:0.7rem;font-weight:600;letter-spacing:1px;text-transform:uppercase;margin-top:2px;">Gainwell &bull; Tennessee</div>
+<div style="text-align:center;padding:0.75rem 0.5rem 0.5rem;">
+    <div style="
+        background:linear-gradient(135deg,#1a1a2e,#0f3460);
+        border-radius:1rem;
+        padding:1rem 0.5rem;
+        border:1px solid rgba(201,168,76,0.25);
+    ">
+        <div style="font-size:1.8rem;">&#128218;</div>
+        <div style="color:#ffffff;font-size:1rem;font-weight:800;margin:0.3rem 0 0;letter-spacing:-0.2px;">Training Tracker</div>
+        <div style="color:#c9a84c;font-size:0.65rem;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;margin-top:3px;">Gainwell &bull; Tennessee</div>
+    </div>
 </div>
 """, unsafe_allow_html=True)
 
