@@ -1158,16 +1158,18 @@ elif page == "Manage Courses":
                     add_course(crs_name, category, duration, due_days)
                     st.success(f"**Added:** {crs_name.strip()} ({category}, {duration}h)")
                     st.balloons()
+                    st.rerun()
                 except Exception as e:
                     st.error(f"Error: {e}")
 
     with tab_view:
         search = st.text_input("Search courses", key="crs_search", placeholder="Type a course name or category...")
-        display = courses.copy()
+        fresh_courses = get_courses()
+        display = fresh_courses.copy()
         if search:
-            display = display[display.apply(lambda r: r.astype(str).str.contains(search, case=False).any(), axis=1)]
+            display = display[display.apply(lambda r: r.astype(str).str.contains(search.strip(), case=False, regex=False).any(), axis=1)]
 
-        st.markdown(f"**Showing {len(display)} of {len(courses)} courses**")
+        st.markdown(f"**Showing {len(display)} of {len(fresh_courses)} courses**")
         st.dataframe(display, use_container_width=True, hide_index=True)
 
         if not courses.empty:
