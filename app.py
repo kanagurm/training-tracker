@@ -284,12 +284,11 @@ hr {
 ::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 10px; }
 ::-webkit-scrollbar-thumb { background: linear-gradient(#6366f1,#8b5cf6); border-radius: 10px; }
 
-/* ── Hide Streamlit toolbar icons only (keep sidebar visible) ── */
-[data-testid="stToolbar"] { display: none !important; }
+/* ── Hide only toolbar action icons, keep sidebar toggle intact ── */
+[data-testid="stToolbar"] { visibility: hidden !important; height: 0 !important; }
 [data-testid="stDecoration"] { display: none !important; }
 [data-testid="stToolbarActions"] { display: none !important; }
-header[data-testid="stHeader"] { background: transparent !important; }
-header[data-testid="stHeader"] > div:first-child { display: none !important; }
+[data-testid="stStatusWidget"] { display: none !important; }
 #MainMenu { display: none !important; }
 footer { display: none !important; }
 
@@ -917,7 +916,7 @@ def pct_card(label, value, pct, color="#6366f1"):
 # APP START
 # ═══════════════════════════════════════════════════════════════
 
-st.set_page_config(page_title="Employee Training Tracker | Gainwell Technologies", page_icon="\U0001f4d8", layout="wide")
+st.set_page_config(page_title="Employee Training Tracker | Gainwell Technologies", page_icon="\U0001f4d8", layout="wide", initial_sidebar_state="expanded")
 st.markdown(THEME_CSS, unsafe_allow_html=True)
 
 # ── Top Branding Bar ──────────────────────────────────────────
