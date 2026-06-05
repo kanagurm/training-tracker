@@ -416,15 +416,39 @@ def require_access():
     if st.session_state.get("authenticated", False):
         return
 
-    st.title("Employee Training Tracker")
-    st.info("Secure mode enabled. Enter access code to continue.")
-    code = st.text_input("Access Code", type="password")
-    if st.button("Unlock", use_container_width=True):
-        if code == APP_ACCESS_CODE:
-            st.session_state["authenticated"] = True
-            st.rerun()
-        else:
-            st.error("Invalid access code.")
+    # Centre the login card
+    _, col, _ = st.columns([1, 1.4, 1])
+    with col:
+        st.markdown("""
+        <div style="
+            background:linear-gradient(135deg,#1a1a2e 0%,#0f3460 100%);
+            border-radius:1.2rem;
+            padding:2.5rem 2rem;
+            border:1px solid rgba(201,168,76,0.25);
+            box-shadow:0 12px 40px rgba(0,0,0,0.35);
+            text-align:center;
+            margin-top:4rem;
+        ">
+            <div style="font-size:2.8rem;margin-bottom:0.5rem;">&#128218;</div>
+            <div style="color:#ffffff;font-size:1.4rem;font-weight:800;margin-bottom:0.25rem;">Employee Training Tracker</div>
+            <div style="color:#c9a84c;font-size:0.75rem;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:1.5rem;">Secure Access</div>
+        </div>
+        """, unsafe_allow_html=True)
+
+        # Wrap in form so Enter key triggers submission
+        with st.form("login_form"):
+            code = st.text_input("Access Code", type="password",
+                                 placeholder="Enter your access code…",
+                                 label_visibility="collapsed")
+            submitted = st.form_submit_button("🔓  Unlock", use_container_width=True)
+
+        if submitted:
+            if code.strip() == APP_ACCESS_CODE:
+                st.session_state["authenticated"] = True
+                st.rerun()
+            else:
+                st.error("Invalid access code. Please try again.")
+
     st.stop()
 
 # ═══════════════════════════════════════════════════════════════
