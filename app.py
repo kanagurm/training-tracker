@@ -984,7 +984,7 @@ st.markdown("""
         <div style="font-size:2.2rem;">&#128218;</div>
         <div>
             <div style="color:#ffffff;font-size:1.35rem;font-weight:800;letter-spacing:-0.2px;font-family:'Plus Jakarta Sans',sans-serif;">Employee Training Tracker</div>
-            <div style="color:#c9a84c;font-size:0.68rem;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;margin-top:2px;">Training Management Platform</div>
+            <div style="color:#c9a84c;font-size:0.68rem;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;margin-top:2px;">Gainwell Technologies • Tennessee</div>
         </div>
     </div>
     <div style="
@@ -1001,10 +1001,6 @@ st.markdown("""
 """, unsafe_allow_html=True)
 require_access()
 init_database()
-
-employees = get_employees()
-courses = get_courses()
-records = get_records()
 
 # ── Sidebar ───────────────────────────────────────────────────
 
@@ -1044,10 +1040,10 @@ page = selected_label.split("  ", 1)[-1]
 
 st.sidebar.markdown("---")
 db_label = "PostgreSQL" if not DB_IS_SQLITE else "SQLite"
+# Lightweight status - no heavy queries here
 st.sidebar.caption(
     f"**Database:** {db_label} (multi-user)\n\n"
-    f"**Employees:** {len(employees)} | **Courses:** {len(courses)} | **Records:** {len(records)}\n\n"
-    f"_Data auto-refreshes every 30 seconds_"
+    f"_Data loads on-demand per page_"
 )
 
 # ═══════════════════════════════════════════════════════════════
@@ -1055,6 +1051,10 @@ st.sidebar.caption(
 # ═══════════════════════════════════════════════════════════════
 if page == "Dashboard":
     gradient_header("Training Dashboard", "Real-time overview across all departments and employees")
+
+    # Load data only for this page
+    employees = get_employees()
+    records = get_records()
 
     total = len(records)
     completed = int((records["Status"]=="Completed").sum())
@@ -1162,6 +1162,10 @@ if page == "Dashboard":
 elif page == "Add Training Record":
     gradient_header("Add Training Record", "Assign a course to an employee and track completion")
 
+    # Load data only for this page
+    employees = get_employees()
+    courses = get_courses()
+
     if employees.empty:
         st.warning("No employees found. Please add employees first via **Manage Employees**.")
     elif courses.empty:
@@ -1209,6 +1213,9 @@ elif page == "Add Training Record":
 # ═══════════════════════════════════════════════════════════════
 elif page == "Manage Employees":
     gradient_header("Manage Employees", "Add new team members or update existing records")
+
+    # Load data only for this page
+    employees = get_employees()
 
     tab_add, tab_view = st.tabs(["Add New Employee", "Current Employees"])
 
@@ -1268,6 +1275,9 @@ elif page == "Manage Employees":
 elif page == "Manage Courses":
     gradient_header("Manage Courses", "Add new training courses or remove existing ones")
 
+    # Load data only for this page
+    courses = get_courses()
+
     tab_add, tab_view = st.tabs(["Add New Course", "Current Courses"])
 
     with tab_add:
@@ -1325,6 +1335,11 @@ elif page == "Manage Courses":
 elif page == "Browse Data":
     gradient_header("Browse Database", "Filter, search and explore all training data")
 
+    # Load data only for this page
+    employees = get_employees()
+    courses = get_courses()
+    records = get_records()
+
     t1, t2, t3 = st.tabs(["Training Records", "Employees", "Courses"])
 
     with t1:
@@ -1354,6 +1369,11 @@ elif page == "Browse Data":
 # ═══════════════════════════════════════════════════════════════
 elif page == "Export":
     gradient_header("Export Data", "Download your training data as CSV or Excel")
+
+    # Load data only for this page
+    employees = get_employees()
+    courses = get_courses()
+    records = get_records()
 
     st.markdown("#### CSV Downloads")
     c1,c2,c3 = st.columns(3)
@@ -1545,6 +1565,11 @@ elif page == "Import from Excel":
 | Employees | Employee Name, Department, Hire Date |
 | Courses | Course Name, Category, Duration Hours, Due Within Days |
 | Training_Records | Employee Name, Course Name, Status, Completion Date, Assigned Date |""")
+
+# ═══════════════════════════════════════════════════════════════
+# AUDIT LOG
+# ═══════════════════════════════════════════════════════════════
+elif page == "Audit Log":
     gradient_header("Audit Log", "Full history of every add, delete, and login action")
 
     audit_df = get_audit_log(500)
@@ -1605,6 +1630,11 @@ elif page == "Import from Excel":
 # ═══════════════════════════════════════════════════════════════
 elif page == "Email Reminders":
     gradient_header("Email Reminders", "Send overdue and upcoming training reminders to employees")
+
+    # Load data only for this page
+    employees = get_employees()
+    courses = get_courses()
+    records = get_records()
 
     smtp_ready = bool(SMTP_USER and SMTP_PASS)
     if not smtp_ready:
