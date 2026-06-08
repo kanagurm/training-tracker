@@ -815,6 +815,38 @@ def get_records():
     df["Completion_Date"] = pd.to_datetime(df["Completion_Date"], errors="coerce")
     return df
 
+@st.cache_data(ttl=30)
+def get_employee_completion_summary():
+    """Get completed trainings grouped by employee for the Training Summary page."""
+    with get_db() as conn:
+        rows = db_execute(
+            conn,
+            "SELECT employee_name, course_name FROM training_records WHERE status='Completed' ORDER BY employee_name, course_name"
+        ).mappings().all()
+    
+    if not rows:
+        return pd.DataFrame(columns=["Employee_Name", "Completed_Count", "Courses"])
+    
+    # Group by employee
+    from collections import defaultdict
+    emp_courses = defaultdict(list)
+    for row in rows:
+        emp_name = row["employee_name"]
+        course_name = row["course_name"]
+        emp_courses[emp_name].append(course_name)
+    
+    # Build result dataframe
+    data = []
+    for emp_name in sorted(emp_courses.keys()):
+        courses = emp_courses[emp_name]
+        data.append({
+            "Employee_Name": emp_name,
+            "Completed_Count": len(courses),
+            "Courses": ", ".join(courses)
+        })
+    
+    return pd.DataFrame(data)
+
 # ── Write functions ──────────────────────────────────────────
 
 def add_employee(name, department, hire_date):
@@ -843,6 +875,7 @@ def add_record(emp, course, status, assigned, completion):
         db_execute(conn, "INSERT INTO training_records VALUES (?,?,?,?,?,?,CURRENT_TIMESTAMP)",
                    (rid, emp, course, status, assigned, cd))
     get_records.clear()
+    get_employee_completion_summary.clear()
     write_audit("ADDED", "training_records", rid, f"{emp} → {course} ({status})")
 
 def delete_employee(name):
@@ -861,6 +894,7 @@ def delete_record(rid):
     with get_db() as conn:
         db_execute(conn, "DELETE FROM training_records WHERE record_id=?", (rid,))
     get_records.clear()
+    get_employee_completion_summary.clear()
     write_audit("DELETED", "training_records", rid, f"Removed record: {rid}")
 
 # ── Export helpers ───────────────────────────────────────────
@@ -1000,7 +1034,8 @@ NAV_ITEMS = [
     ("📤", "Export"),
     ("📋", "Audit Log"),
     ("📧", "Email Reminders"),
-    ("📥", "Import from Excel"),
+    ("�", "Training Summary"),
+    ("�📥", "Import from Excel"),
 ]
 NAV_LABELS = [f"{icon}  {label}" for icon, label in NAV_ITEMS]
 
@@ -1493,6 +1528,7 @@ elif page == "Import from Excel":
             get_employees.clear()
             get_courses.clear()
             get_records.clear()
+            get_employee_completion_summary.clear()
 
             st.markdown("#### Import Results")
             for sname, ins, skip, err in results:
@@ -1654,3 +1690,170 @@ elif page == "Email Reminders":
     c1.metric("SMTP Host", SMTP_HOST)
     c2.metric("SMTP Port", SMTP_PORT)
     c3.metric("Auth Configured", "Yes" if smtp_ready else "No")
+
+elif page == "Training Summary":
+    gradient_header("Employee Training Summary", "Track completed trainings per employee with course details on hover")
+
+    # Get completion data
+    summary_df = get_employee_completion_summary()
+
+    if summary_df.empty:
+        st.info("No completed trainings yet. Courses will appear here as employees complete their training.")
+    else:
+        # Display metrics at top
+        metric_cols = st.columns(3)
+        with metric_cols[0]:
+            st.metric("Total Employees with Completions", len(summary_df))
+        with metric_cols[1]:
+            st.metric("Total Trainings Completed", summary_df["Completed_Count"].sum())
+        with metric_cols[2]:
+            avg_completed = summary_df["Completed_Count"].mean()
+            st.metric("Avg. Trainings per Employee", f"{avg_completed:.1f}")
+
+        st.markdown("---")
+
+        # Filter by employee (optional)
+        st.markdown("#### Employee Completion List")
+        employee_filter = st.multiselect(
+            "Filter by Employee (leave empty to show all)",
+            sorted(summary_df["Employee_Name"].unique().tolist()),
+            key="emp_filter_training_summary"
+        )
+
+        display_df = summary_df.copy()
+        if employee_filter:
+            display_df = display_df[display_df["Employee_Name"].isin(employee_filter)]
+
+        # Create interactive table with hover tooltips using HTML
+        st.markdown("""
+        <style>
+        .completion-row {
+            display: flex;
+            padding: 0.75rem 1rem;
+            margin: 0.5rem 0;
+            background: linear-gradient(90deg, rgba(26,26,46,0.6) 0%, rgba(15,52,96,0.4) 100%);
+            border-left: 3px solid #c9a84c;
+            border-radius: 0.5rem;
+            align-items: center;
+            gap: 2rem;
+            transition: all 0.2s ease;
+        }
+        .completion-row:hover {
+            background: linear-gradient(90deg, rgba(26,26,46,0.9) 0%, rgba(15,52,96,0.7) 100%);
+            border-left-color: #e8c96a;
+            box-shadow: 0 4px 12px rgba(201,168,76,0.15);
+        }
+        .emp-name {
+            flex: 1;
+            font-weight: 600;
+            color: #ffffff;
+            font-size: 0.95rem;
+        }
+        .count-badge {
+            background: linear-gradient(135deg, #c9a84c, #e8c96a);
+            color: #1a1a2e;
+            padding: 0.35rem 0.75rem;
+            border-radius: 2rem;
+            font-weight: 700;
+            font-size: 0.85rem;
+            min-width: 3rem;
+            text-align: center;
+        }
+        .courses-link {
+            color: #0ea5e9;
+            font-weight: 600;
+            cursor: help;
+            text-decoration: underline;
+            transition: color 0.2s ease;
+        }
+        .courses-link:hover {
+            color: #c9a84c;
+        }
+        </style>
+        """, unsafe_allow_html=True)
+
+        # Display each employee's completion record
+        for idx, row in display_df.iterrows():
+            emp_name = row["Employee_Name"]
+            count = row["Completed_Count"]
+            courses_list = row["Courses"]
+
+            # Create HTML with hover tooltip
+            html_content = f"""
+            <div class="completion-row">
+                <div class="emp-name">{emp_name}</div>
+                <div class="count-badge">{count}</div>
+                <div class="courses-link" title="{courses_list}">📋 Hover to see courses</div>
+            </div>
+            """
+            st.markdown(html_content, unsafe_allow_html=True)
+
+        st.markdown("---")
+
+        # Completion statistics
+        st.markdown("#### Completion Statistics")
+        col1, col2 = st.columns(2)
+
+        with col1:
+            # Bar chart: Employees by completion count
+            completion_dist = display_df["Completed_Count"].value_counts().sort_index().reset_index()
+            completion_dist.columns = ["Number of Trainings", "Number of Employees"]
+
+            fig_bar = px.bar(
+                completion_dist,
+                x="Number of Trainings",
+                y="Number of Employees",
+                title="Distribution of Completed Trainings",
+                color="Number of Employees",
+                color_continuous_scale=["#0f3460", "#16c784"],
+                labels={"Number of Trainings": "Trainings Completed", "Number of Employees": "Employees"}
+            )
+            fig_bar.update_layout(
+                paper_bgcolor="rgba(0,0,0,0)",
+                plot_bgcolor="rgba(0,0,0,0)",
+                font=dict(family="Inter", color="#ffffff"),
+                margin=dict(t=40, b=10),
+                hovermode="x unified"
+            )
+            st.plotly_chart(fig_bar, use_container_width=True)
+
+        with col2:
+            # Pie chart: Top courses completed
+            all_courses_str = " ".join(display_df["Courses"].tolist())
+            course_counts = {}
+            for courses_str in display_df["Courses"].tolist():
+                for course in courses_str.split(", "):
+                    course = course.strip()
+                    if course:
+                        course_counts[course] = course_counts.get(course, 0) + 1
+
+            if course_counts:
+                course_df = pd.DataFrame(list(course_counts.items()), columns=["Course", "Count"]).sort_values("Count", ascending=False)
+                fig_pie = px.pie(
+                    course_df.head(8),  # Top 8 courses
+                    names="Course",
+                    values="Count",
+                    title="Top Completed Courses",
+                    hole=0.4,
+                    color_discrete_sequence=px.colors.sequential.Turbo
+                )
+                fig_pie.update_layout(
+                    paper_bgcolor="rgba(0,0,0,0)",
+                    font=dict(family="Inter", color="#ffffff"),
+                    margin=dict(t=40, b=10)
+                )
+                st.plotly_chart(fig_pie, use_container_width=True)
+
+        st.markdown("---")
+
+        # Download CSV
+        csv_data = display_df[["Employee_Name", "Completed_Count", "Courses"]].copy()
+        csv_data.columns = ["Employee Name", "Trainings Completed", "Courses"]
+
+        st.download_button(
+            "📥 Download Training Summary CSV",
+            csv_data.to_csv(index=False).encode("utf-8"),
+            "training_summary.csv",
+            "text/csv",
+            use_container_width=True
+        )
