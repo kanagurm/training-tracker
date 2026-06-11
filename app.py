@@ -524,10 +524,10 @@ def _send_email(to_addr, subject, html_body):
         msg["From"] = NOTIFY_FROM
         msg["To"] = to_addr
         msg.attach(MIMEText(html_body, "html"))
-        ctx = ssl.create_default_context()
         with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as server:
             server.ehlo()
-            server.starttls(ctx)
+            server.starttls()  # Fixed: starttls() doesn't take positional args
+            server.ehlo()  # Second EHLO after STARTTLS as per RFC
             server.login(SMTP_USER, SMTP_PASS)
             server.sendmail(NOTIFY_FROM, to_addr, msg.as_string())
         return True, ""
