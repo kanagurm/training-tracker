@@ -48,7 +48,7 @@
 
 - [ ] **Accounts & Passwords**:
   - Streamlit Cloud login (to export data)
-  - Gmail account with App Password (for emails to work)
+  - Gainwell email account credentials (for sending email reminders)
 
 ### Optional but Helpful
 
@@ -63,7 +63,7 @@
 ```
 Your Browser → Internet → Streamlit Cloud → Neon Database (PostgreSQL)
                                 ↓
-                          Email (Gmail)
+                      Email (Gainwell SMTP)
 ```
 
 **Problems**:
@@ -75,7 +75,7 @@ Your Browser → Internet → Streamlit Cloud → Neon Database (PostgreSQL)
 ```
 Your Browser → Office Network → Windows VM → Local Database (SQLite)
                                      ↓
-                               Email (Gmail)
+                         Email (Gainwell SMTP)
 ```
 
 **Benefits**:
@@ -331,11 +331,13 @@ gatherUsageStats = false
 ### 6.2 Create Secrets File (for Email)
 
 1. In Notepad, click File → New
-2. Type (replace with your actual Gmail info):
+2. Type (replace with your actual Gainwell email info):
 
 ```
-SMTP_USER = "your_email@gmail.com"
-SMTP_PASS = "your_16_char_app_password"
+SMTP_HOST = "smtp.gainwell.com"
+SMTP_PORT = 587
+SMTP_USER = "your.name@gainwell.com"
+SMTP_PASS = "your_password"
 ```
 
 3. Click File → Save As
@@ -344,7 +346,10 @@ SMTP_PASS = "your_16_char_app_password"
 6. Save as type: **All Files**
 7. Click Save
 
-**Important**: Use your Gmail App Password, not regular password!
+**Important**: 
+- Get the correct SMTP_HOST and SMTP_PORT from your IT department
+- Use your regular Gainwell email credentials
+- Port is typically 587 (STARTTLS) or 25 (internal relay)
 
 ### 6.3 Let App Use Local Database
 
@@ -650,14 +655,20 @@ Ask IT to check network firewall/router settings.
 ### Problem: Email not sending
 
 **Checklist**:
-1. Using Gmail App Password (not regular password)?
-2. `secrets.toml` file has correct credentials?
-3. 2-Factor Authentication enabled on Gmail?
+1. `secrets.toml` has correct SMTP_HOST and SMTP_PORT?
+2. Using correct Gainwell email credentials?
+3. VM allowed to send outbound SMTP traffic?
+4. Firewall blocking mail server connection?
 
 **Test**:
 1. Open `C:\TrainingTracker\.streamlit\secrets.toml`
-2. Verify `SMTP_USER` and `SMTP_PASS` are correct
+2. Verify all settings:
+   - `SMTP_HOST` = Gainwell mail server
+   - `SMTP_PORT` = Correct port (587 or 25)
+   - `SMTP_USER` = Your Gainwell email
+   - `SMTP_PASS` = Your email password
 3. No extra spaces or quotes
+4. Ask IT to verify SMTP settings if still failing
 
 ---
 
