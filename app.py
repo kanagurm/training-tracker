@@ -26,7 +26,7 @@ APP_ACCESS_CODE = os.getenv("APP_ACCESS_CODE", "").strip()
 
 # Email config — set these as Streamlit Secrets or environment variables
 SMTP_HOST = os.getenv("SMTP_HOST", "smtp.rediffmail.com")
-SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
+SMTP_PORT = int(os.getenv("SMTP_PORT", "465"))  # 465 for SSL, 587 for STARTTLS
 SMTP_USER = os.getenv("SMTP_USER", "").strip()       # your Rediffmail address
 SMTP_PASS = os.getenv("SMTP_PASS", "").strip()       # Rediffmail password
 NOTIFY_FROM = os.getenv("NOTIFY_FROM", SMTP_USER)   # sender address
@@ -524,12 +524,22 @@ def _send_email(to_addr, subject, html_body):
         msg["From"] = NOTIFY_FROM
         msg["To"] = to_addr
         msg.attach(MIMEText(html_body, "html"))
-        with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as server:
-            server.ehlo()
-            server.starttls()  # Fixed: starttls() doesn't take positional args
-            server.ehlo()  # Second EHLO after STARTTLS as per RFC
-            server.login(SMTP_USER, SMTP_PASS)
-            server.sendmail(NOTIFY_FROM, to_addr, msg.as_string())
+        
+        # Use SSL on port 465, STARTTLS on port 587
+        if SMTP_PORT == 465:
+            # Implicit SSL (recommended for Rediffmail)
+            context = ssl.create_default_context()
+            with smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT, context=context) as server:
+                server.login(SMTP_USER, SMTP_PASS)
+                server.sendmail(NOTIFY_FROM, to_addr, msg.as_string())
+        else:
+            # STARTTLS (port 587 or other)
+            with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as server:
+                server.ehlo()
+                server.starttls()
+                server.ehlo()
+                server.login(SMTP_USER, SMTP_PASS)
+                server.sendmail(NOTIFY_FROM, to_addr, msg.as_string())
         return True, ""
     except Exception as e:
         return False, str(e)
