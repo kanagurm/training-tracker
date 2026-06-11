@@ -25,10 +25,10 @@ DATABASE_URL = os.getenv("DATABASE_URL", "").strip()
 APP_ACCESS_CODE = os.getenv("APP_ACCESS_CODE", "").strip()
 
 # Email config — set these as Streamlit Secrets or environment variables
-SMTP_HOST = os.getenv("SMTP_HOST", "smtp.rediffmail.com")
-SMTP_PORT = int(os.getenv("SMTP_PORT", "465"))  # 465 for SSL, 587 for STARTTLS
-SMTP_USER = os.getenv("SMTP_USER", "").strip()       # your Rediffmail address
-SMTP_PASS = os.getenv("SMTP_PASS", "").strip()       # Rediffmail password
+SMTP_HOST = os.getenv("SMTP_HOST", "smtp.gmail.com")
+SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))  # 587 for STARTTLS (Gmail)
+SMTP_USER = os.getenv("SMTP_USER", "").strip()       # your Gmail address
+SMTP_PASS = os.getenv("SMTP_PASS", "").strip()       # Gmail App Password (16 chars)
 NOTIFY_FROM = os.getenv("NOTIFY_FROM", SMTP_USER)   # sender address
 OVERDUE_DAYS_THRESHOLD = int(os.getenv("OVERDUE_DAYS_THRESHOLD", "3"))  # warn N days before due
 STATUS_OPTIONS = ["Completed", "In Progress", "Not Started", "Overdue"]
@@ -1674,9 +1674,10 @@ elif page == "Email Reminders":
     if not smtp_ready:
         st.warning(
             "Email not configured. Add these to Streamlit Secrets:\n\n"
-            "```\nSMTP_USER = \"your_email@rediffmail.com\"\n"
-            "SMTP_PASS = \"your_rediffmail_password\"\n```\n\n"
-            "Configure via Streamlit Cloud Secrets or environment variables."
+            "```\nSMTP_USER = \"your_email@gmail.com\"\n"
+            "SMTP_PASS = \"your_16_char_app_password\"\n```\n\n"
+            "Generate Gmail App Password at: https://myaccount.google.com/apppasswords\n\n"
+            "Note: You must enable 2-Factor Authentication on your Gmail account first."
         )
 
     st.markdown("#### Send Manual Reminder")
