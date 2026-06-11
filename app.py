@@ -518,31 +518,55 @@ def _send_email(to_addr, subject, html_body):
     """Send one email via SMTP TLS. Returns (success, error_msg)."""
     if not SMTP_USER or not SMTP_PASS:
         return False, "SMTP_USER or SMTP_PASS not configured."
-    try:
-        msg = MIMEMultipart("alternative")
-        msg["Subject"] = subject
-        msg["From"] = NOTIFY_FROM
-        msg["To"] = to_addr
-        msg.attach(MIMEText(html_body, "html"))
-        
-        # Use SSL on port 465, STARTTLS on port 587
-        if SMTP_PORT == 465:
-            # Implicit SSL (recommended for Rediffmail)
-            context = ssl.create_default_context()
-            with smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT, context=context) as server:
-                server.login(SMTP_USER, SMTP_PASS)
-                server.sendmail(NOTIFY_FROM, to_addr, msg.as_string())
-        else:
-            # STARTTLS (port 587 or other)
-            with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as server:
-                server.ehlo()
-                server.starttls()
-                server.ehlo()
-                server.login(SMTP_USER, SMTP_PASS)
-                server.sendmail(NOTIFY_FROM, to_addr, msg.as_string())
-        return True, ""
-    except Exception as e:
-        return False, str(e)
+    
+    msg = MIMEMultipart("alternative")
+    msg["Subject"] = subject
+    msg["From"] = NOTIFY_FROM
+    msg["To"] = to_addr
+    msg.attach(MIMEText(html_body, "html"))
+    
+    # Try multiple methods for compatibility with different SMTP servers
+    methods = []
+    
+    if SMTP_PORT == 465:
+        methods.append(("SMTP_SSL (port 465)", lambda: _send_via_ssl(msg, to_addr)))
+    elif SMTP_PORT == 587:
+        methods.append(("STARTTLS (port 587)", lambda: _send_via_starttls(msg, to_addr)))
+    else:
+        # Try both methods
+        methods.append(("SMTP_SSL (port 465)", lambda: _send_via_ssl(msg, to_addr, 465)))
+        methods.append(("STARTTLS (port 587)", lambda: _send_via_starttls(msg, to_addr, 587)))
+    
+    last_error = ""
+    for method_name, send_func in methods:
+        try:
+            send_func()
+            return True, ""
+        except Exception as e:
+            last_error = f"{method_name} failed: {str(e)}"
+            continue
+    
+    return False, last_error
+
+def _send_via_ssl(msg, to_addr, port=None):
+    """Send email using SMTP_SSL (implicit SSL on port 465)."""
+    port = port or SMTP_PORT
+    context = ssl.create_default_context()
+    with smtplib.SMTP_SSL(SMTP_HOST, port, context=context, timeout=30) as server:
+        server.set_debuglevel(0)
+        server.login(SMTP_USER, SMTP_PASS)
+        server.sendmail(NOTIFY_FROM, to_addr, msg.as_string())
+
+def _send_via_starttls(msg, to_addr, port=None):
+    """Send email using STARTTLS (explicit TLS on port 587)."""
+    port = port or SMTP_PORT
+    with smtplib.SMTP(SMTP_HOST, port, timeout=30) as server:
+        server.set_debuglevel(0)
+        server.ehlo()
+        server.starttls()
+        server.ehlo()
+        server.login(SMTP_USER, SMTP_PASS)
+        server.sendmail(NOTIFY_FROM, to_addr, msg.as_string())
 
 def send_overdue_reminder(employee_name, course_name, to_email, days_overdue):
     subject = f"[Training Reminder] Overdue: {course_name}"
